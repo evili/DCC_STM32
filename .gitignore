@@ -1,6 +1,7 @@
 Debug
 Build
 .settings
+*~
 # Prerequisites
 *.d
 

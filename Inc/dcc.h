@@ -14,8 +14,6 @@ extern "C" {
 // == 1/(2*58)*1000000
 #define DCC_ONE_BIT_FREQ  (8621u)
 
-
-
 #define DCC_PACKET_PREAMBLE_LEN             (14)
 #define DCC_PACKET_ADDRESS_START_BIT_LEN     (1)
 #define DCC_PACKET_ADDRES_LEN                (8)
@@ -56,10 +54,11 @@ typedef struct DCC_Packet {
   unsigned char address;
   unsigned char data[DCC_MAX_DATA_BYTES];
   unsigned char crc;
-  void adjust_crc();
-  void set_address(unsigned char addr);
-  void set_speed(unsigned char speed, unsigned char direction = 0x01);
 } DCC_Packet;
+
+void DCC_Packet_adjust_crc();
+void DCC_Packet_set_address(unsigned char addr);
+void DCC_Packet_set_speed(unsigned char speed, unsigned char direction);
 
 const DCC_Packet DCC_Packet_Idle  = {1, 0xFF, {0x00, 0x00, 0x00}, 0xFF};
 const DCC_Packet DCC_Packet_Reset = {1, 0x00, {0x00, 0x00, 0x00}, 0x00};
@@ -73,24 +72,23 @@ typedef struct DCC_Packet_Queue {
     DCC_Packet_Queue *next;
     const DCC_Packet *packet;
     char count;
-  public:
-    DCC_Packet_Queue();
-    DCC_Packet_Queue(DCC_Packet_Queue *first, const DCC_Packet *packet, unsigned char count);
-    ~DCC_Packet_Queue();
-    int Add_DCC_Packet(const DCC_Packet *packet, short count);
 } DCC_Packet_Queue;
 
+void DCC_Packet_Queue_init(DCC_Packet_Queue *queue);
+int DCC_Packet_Queue_Add_DCC_Packet(const DCC_Packet *packet, short count);
+
+
 typedef struct DCC_Packet_Pump {
-    DCC_Bit next_bit = DCC_ONE;
+    DCC_Bit next_bit;
     DCC_Packet_State status;
     unsigned char      bit;
     unsigned char data_count;
     DCC_Packet_Queue *queue;
-    void DCC_Emit(DCC_Bit);
-  public:
-    DCC_Packet_Pump(DCC_Packet_Queue *queue);
-    unsigned int next();
 } DCC_Packet_Pump;
+
+void DCC_Packet_Pump_Emit(DCC_Bit);
+void DCC_Packet_Pump_init(DCC_Packet_Pump *pump, DCC_Packet_Queue *queue);
+unsigned int DCC_Packet_Pump_next();
 
 void dcc_pretty_print(DCC_Packet packet, const char *string);
 
