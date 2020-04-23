@@ -29,6 +29,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include <stdio.h>
 #include "dcc.h"
 /* USER CODE END Includes */
 
@@ -49,8 +50,10 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
+
 DCC_Packet_Queue main_queue;
-DCC_PAcket_Pump main_pump;
+DCC_Packet_Pump main_pump;
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -61,6 +64,14 @@ void SystemClock_Config(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+
+#ifdef __GNUC__
+/* With GCC/RAISONANCE, small printf (option LD Linker->Libraries->Small printf
+ set to 'Yes') calls __io_putchar() */
+#define PUTCHAR_PROTOTYPE int __io_putchar(int ch)
+#else
+#define PUTCHAR_PROTOTYPE int fputc(int ch, FILE *f)
+#endif /* __GNUC__ */
 
 /* USER CODE END 0 */
 
@@ -98,8 +109,17 @@ int main(void)
   MX_USART3_UART_Init();
   MX_USB_OTG_FS_PCD_Init();
   /* USER CODE BEGIN 2 */
+  DCC_Packet *current;
+  DCC_Packet Loco_3 = {1, -1, 0x03, {0x00, 0x00, 0x00, 0x00, 0x00}, 0x00};
   DCC_Packet_Queue_init(&main_queue);
   DCC_Packet_Pump_init(&main_pump, &main_queue);
+  DCC_Stream idle_stream;
+
+  DCC_Packet_set_speed(&Loco_3, 55, 1);
+  DCC_Packet_Queue_Add_DCC_Packet(&main_queue, &Loco_3);
+
+  int j = 0;
+  //unsigned int n;
 
   /* USER CODE END 2 */
 
@@ -110,6 +130,27 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+	if(j==0) {
+		current = DCC_Packet_Queue_peek(&main_queue);
+		DCC_Packet_to_DCC_Stream(current, &idle_stream);
+		printf("\nPACKET Bit Stream:\n");
+		for(int i=0; i< (idle_stream.nbits/8); i++) {
+			printf("%02x, ", idle_stream.data[i]);
+		}
+		printf("\n");
+		printf("\nPACKET: %u, FRONT: %u, REAR: %u, PIVOT: %u\n", current, main_queue.front, main_queue.rear, main_queue.pivot);
+		printf("\n===> PACKET END\n\n===> PACKET START Len = %d:\n", idle_stream.nbits);
+		printf("         1         2         3         4         5         6         7         8\n");
+		printf("12345678901234567890123456789012345678901234567890123456789012345678901234567890\n");
+	}
+	//printf("STATUS: %u, BIT: %2u, DATA_COUNT: %u", main_pump.status, main_pump.bit, main_pump.data_count);
+	//n = DCC_Packet_Pump_next(&main_pump);
+	//printf(", EMIT: %u\n\n", (DCC_ONE ==n));
+	printf("%u", (DCC_ONE == DCC_Packet_Pump_next(&main_pump)));
+	HAL_GPIO_TogglePin(LD_Green_GPIO_Port, LD_Green_Pin);
+	HAL_Delay(200);
+	j++;
+	j %= idle_stream.nbits;
   }
   /* USER CODE END 3 */
 }
@@ -174,6 +215,20 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
+
+/**
+ * @brief Retargets the C library printf function to the USART.
+ * @param None
+ * @retval None
+ */
+PUTCHAR_PROTOTYPE
+{
+ /* Place your implementation of fputc here */
+ /* e.g. write a character to the USART2 and Loop until the end of transmission */
+ HAL_UART_Transmit(&huart3, (uint8_t *)&ch, 1, 0xFFFF);
+
+ return ch;
+}
 
 /* USER CODE END 4 */
 

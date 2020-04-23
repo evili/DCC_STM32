@@ -5,8 +5,8 @@
 extern "C" {
 #endif
 
+#define DCC_MAX_DATA_BYTES 5u
 
-#define DCC_MAX_DATA_BYTES 3u
 #define DCC_ZERO_BIT_HALF_TIME_MS (100u)
 #define DCC_ONE_BIT_HALF_TIME_MS   (58u)
 // == 1/(2*100)*1000000
@@ -31,7 +31,20 @@ extern "C" {
 #define DCC_PACKET_SPEED_128         (0x3F)
 #define DCC_PACKET_SPEED_128_DIR_BIT    (7)
 
+#define DCC_MAX_STREAM_BITS  77 // = 14+1+(8+1)+(8+1)*5+8+1 =13+63  = 78
+#define DCC_MAX_STREAM_BYTES 10 // = 78/8+1
 
+#define MAX_NODES  120
+#define FINAL_NODE 119 // MAX_NODES-1)
+
+#define QUEUE_OK             (0)
+#define QUEUE_ERR_FULL      (-1)
+#define QUEUE_ERR_EMPTY     (-2)
+#define QUEUE_ERR_NOT_FOUND (-3)
+
+#ifndef NULL
+#define NULL 0
+#endif
 
 typedef enum {
   DCC_ZERO = DCC_ZERO_BIT_FREQ,
@@ -51,32 +64,41 @@ typedef enum {
 
 typedef struct DCC_Packet {
   int data_len;
+  int count;
   unsigned char address;
   unsigned char data[DCC_MAX_DATA_BYTES];
   unsigned char crc;
 } DCC_Packet;
 
-void DCC_Packet_adjust_crc();
-void DCC_Packet_set_address(unsigned char addr);
-void DCC_Packet_set_speed(unsigned char speed, unsigned char direction);
+typedef struct DCC_Stream {
+  int nbits;
+  unsigned char data[DCC_MAX_STREAM_BYTES];
+} DCC_Stream;
 
-const DCC_Packet DCC_Packet_Idle  = {1, 0xFF, {0x00, 0x00, 0x00}, 0xFF};
-const DCC_Packet DCC_Packet_Reset = {1, 0x00, {0x00, 0x00, 0x00}, 0x00};
-const DCC_Packet DCC_Packet_Stop  = {1, 0x00, {0x40, 0x00, 0x00}, 0x00};
+void DCC_Packet_adjust_crc(DCC_Packet *p);
+void DCC_Packet_set_address(DCC_Packet *p, unsigned char addr);
+void DCC_Packet_set_speed(DCC_Packet *p, unsigned char speed, unsigned char direction);
+void DCC_Packet_to_DCC_Stream(DCC_Packet *packet, DCC_Stream *stream);
+
+extern const DCC_Packet DCC_Packet_Idle;
+extern const DCC_Packet DCC_Packet_Reset;
+extern const DCC_Packet DCC_Packet_Stop;
+
 
 #define DCC_QUEUE_MAX 40
 
 typedef struct DCC_Packet_Queue {
-    unsigned char length;
-    DCC_Packet_Queue *first;
-    DCC_Packet_Queue *next;
-    const DCC_Packet *packet;
-    char count;
+	DCC_Packet *list[MAX_NODES];
+	int front;
+	int rear;
+	int pivot;
 } DCC_Packet_Queue;
 
 void DCC_Packet_Queue_init(DCC_Packet_Queue *queue);
-int DCC_Packet_Queue_Add_DCC_Packet(const DCC_Packet *packet, short count);
-
+int DCC_Packet_Queue_Add_DCC_Packet(DCC_Packet_Queue *queue, DCC_Packet *packet);
+int DCC_Packet_Queue_delete(DCC_Packet_Queue *q, DCC_Packet *p);
+DCC_Packet *DCC_Packet_Queue_next(DCC_Packet_Queue *q);
+DCC_Packet *DCC_Packet_Queue_peek(DCC_Packet_Queue *q);
 
 typedef struct DCC_Packet_Pump {
     DCC_Bit next_bit;
@@ -88,9 +110,9 @@ typedef struct DCC_Packet_Pump {
 
 void DCC_Packet_Pump_Emit(DCC_Bit);
 void DCC_Packet_Pump_init(DCC_Packet_Pump *pump, DCC_Packet_Queue *queue);
-unsigned int DCC_Packet_Pump_next();
+unsigned int DCC_Packet_Pump_next(DCC_Packet_Pump *pump);
 
-void dcc_pretty_print(DCC_Packet packet, const char *string);
+// void dcc_pretty_print(DCC_Packet packet, const char *string);
 
 #ifdef __cplusplus
 }
