@@ -62,6 +62,7 @@ void Error_Handler(void);
 #define DCC_ZERO_CCR 21600
 #define DCC_ONE_ARR 25058
 #define DCC_ONE_CCR 12529
+#define DCC_PACKET_QUEUE_LEN 20
 #define USER_Btn_Pin GPIO_PIN_13
 #define USER_Btn_GPIO_Port GPIOC
 #define LD_Green_Pin GPIO_PIN_0

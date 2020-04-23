@@ -20,6 +20,7 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "cmsis_os.h"
 #include "dma.h"
 #include "eth.h"
 #include "tim.h"
@@ -58,6 +59,7 @@ DCC_Packet_Pump main_pump;
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
+void MX_FREERTOS_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -109,20 +111,16 @@ int main(void)
   MX_USART3_UART_Init();
   MX_USB_OTG_FS_PCD_Init();
   /* USER CODE BEGIN 2 */
-  DCC_Packet *current;
-  DCC_Packet Loco_3 = {1, -1, 0x03, {0x00, 0x00, 0x00, 0x00, 0x00}, 0x00};
-  DCC_Packet_Queue_init(&main_queue);
-  DCC_Packet_Pump_init(&main_pump, &main_queue);
-  DCC_Stream idle_stream;
-
-  DCC_Packet_set_speed(&Loco_3, 55, 1);
-  DCC_Packet_Queue_Add_DCC_Packet(&main_queue, &Loco_3);
-
-  int j = 0;
-  //unsigned int n;
 
   /* USER CODE END 2 */
 
+  /* Init scheduler */
+  osKernelInitialize();  /* Call init function for freertos objects (in freertos.c) */
+  MX_FREERTOS_Init(); 
+  /* Start scheduler */
+  osKernelStart();
+ 
+  /* We should never get here as control is now taken by the scheduler */
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
@@ -130,28 +128,6 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-	if(j==0) {
-		current = DCC_Packet_Queue_peek(&main_queue);
-		DCC_Packet_to_DCC_Stream(current, &idle_stream);
-		printf("\nPACKET Bit Stream:\n");
-		for(int i=0; i< (idle_stream.nbits/8); i++) {
-			printf("%02x, ", idle_stream.data[i]);
-		}
-		printf("\n");
-		printf("\nPACKET: %u, FRONT: %u, REAR: %u, PIVOT: %u\n", current, main_queue.front, main_queue.rear, main_queue.pivot);
-		printf("\n===> PACKET END\n\n===> PACKET START Len = %d:\n", idle_stream.nbits);
-		printf("         1         2         3         4         5         6         7         8\n");
-		printf("12345678901234567890123456789012345678901234567890123456789012345678901234567890\n");
-	}
-	//printf("STATUS: %u, BIT: %2u, DATA_COUNT: %u", main_pump.status, main_pump.bit, main_pump.data_count);
-	//n = DCC_Packet_Pump_next(&main_pump);
-	//printf(", EMIT: %u\n\n", (DCC_ONE ==n));
-	printf("%u", (DCC_ONE == DCC_Packet_Pump_next(&main_pump)));
-	HAL_GPIO_TogglePin(LD_Green_GPIO_Port, LD_Green_Pin);
-	HAL_Delay(200);
-	j++;
-	j %= idle_stream.nbits;
-  }
   /* USER CODE END 3 */
 }
 
@@ -231,6 +207,27 @@ PUTCHAR_PROTOTYPE
 }
 
 /* USER CODE END 4 */
+
+ /**
+  * @brief  Period elapsed callback in non blocking mode
+  * @note   This function is called  when TIM7 interrupt took place, inside
+  * HAL_TIM_IRQHandler(). It makes a direct call to HAL_IncTick() to increment
+  * a global variable "uwTick" used as application time base.
+  * @param  htim : TIM handle
+  * @retval None
+  */
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+{
+  /* USER CODE BEGIN Callback 0 */
+
+  /* USER CODE END Callback 0 */
+  if (htim->Instance == TIM7) {
+    HAL_IncTick();
+  }
+  /* USER CODE BEGIN Callback 1 */
+
+  /* USER CODE END Callback 1 */
+}
 
 /**
   * @brief  This function is executed in case of error occurrence.
