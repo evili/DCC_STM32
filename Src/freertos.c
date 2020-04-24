@@ -26,7 +26,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */     
-
+#include "dcc.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -51,21 +51,21 @@
 /* Definitions for defaultTask */
 osThreadId_t defaultTaskHandle;
 const osThreadAttr_t defaultTask_attributes = {
-		.name = "defaultTask",
-		.priority = (osPriority_t) osPriorityNormal,
-		.stack_size = 128 * 4
+  .name = "defaultTask",
+  .priority = (osPriority_t) osPriorityNormal,
+  .stack_size = 128 * 4
 };
 /* Definitions for dccTask */
 osThreadId_t dccTaskHandle;
 const osThreadAttr_t dccTask_attributes = {
-		.name = "dccTask",
-		.priority = (osPriority_t) osPriorityHigh,
-		.stack_size = 128 * 4
+  .name = "dccTask",
+  .priority = (osPriority_t) osPriorityHigh4,
+  .stack_size = 128 * 4
 };
 /* Definitions for dccPAcketQueue */
 osMessageQueueId_t dccPAcketQueueHandle;
 const osMessageQueueAttr_t dccPAcketQueue_attributes = {
-		.name = "dccPAcketQueue"
+  .name = "dccPAcketQueue"
 };
 
 /* Private function prototypes -----------------------------------------------*/
@@ -79,45 +79,45 @@ void StartDccTask(void *argument);
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
 
 /**
- * @brief  FreeRTOS initialization
- * @param  None
- * @retval None
- */
+  * @brief  FreeRTOS initialization
+  * @param  None
+  * @retval None
+  */
 void MX_FREERTOS_Init(void) {
-	/* USER CODE BEGIN Init */
+  /* USER CODE BEGIN Init */
 
-	/* USER CODE END Init */
+  /* USER CODE END Init */
 
-	/* USER CODE BEGIN RTOS_MUTEX */
+  /* USER CODE BEGIN RTOS_MUTEX */
 	/* add mutexes, ... */
-	/* USER CODE END RTOS_MUTEX */
+  /* USER CODE END RTOS_MUTEX */
 
-	/* USER CODE BEGIN RTOS_SEMAPHORES */
+  /* USER CODE BEGIN RTOS_SEMAPHORES */
 	/* add semaphores, ... */
-	/* USER CODE END RTOS_SEMAPHORES */
+  /* USER CODE END RTOS_SEMAPHORES */
 
-	/* USER CODE BEGIN RTOS_TIMERS */
+  /* USER CODE BEGIN RTOS_TIMERS */
 	/* start timers, add new ones, ... */
-	/* USER CODE END RTOS_TIMERS */
+  /* USER CODE END RTOS_TIMERS */
 
-	/* Create the queue(s) */
-	/* creation of dccPAcketQueue */
-	dccPAcketQueueHandle = osMessageQueueNew (20, sizeof(uint16_t), &dccPAcketQueue_attributes);
+  /* Create the queue(s) */
+  /* creation of dccPAcketQueue */
+  dccPAcketQueueHandle = osMessageQueueNew (20, sizeof(uint16_t), &dccPAcketQueue_attributes);
 
-	/* USER CODE BEGIN RTOS_QUEUES */
+  /* USER CODE BEGIN RTOS_QUEUES */
 	/* add queues, ... */
-	/* USER CODE END RTOS_QUEUES */
+  /* USER CODE END RTOS_QUEUES */
 
-	/* Create the thread(s) */
-	/* creation of defaultTask */
-	defaultTaskHandle = osThreadNew(StartDefaultTask, NULL, &defaultTask_attributes);
+  /* Create the thread(s) */
+  /* creation of defaultTask */
+  defaultTaskHandle = osThreadNew(StartDefaultTask, NULL, &defaultTask_attributes);
 
-	/* creation of dccTask */
-	dccTaskHandle = osThreadNew(StartDccTask, NULL, &dccTask_attributes);
+  /* creation of dccTask */
+  dccTaskHandle = osThreadNew(StartDccTask, NULL, &dccTask_attributes);
 
-	/* USER CODE BEGIN RTOS_THREADS */
+  /* USER CODE BEGIN RTOS_THREADS */
 	/* add threads, ... */
-	/* USER CODE END RTOS_THREADS */
+  /* USER CODE END RTOS_THREADS */
 
 }
 
@@ -130,23 +130,22 @@ void MX_FREERTOS_Init(void) {
 /* USER CODE END Header_StartDefaultTask */
 void StartDefaultTask(void *argument)
 {
-	/* USER CODE BEGIN StartDefaultTask */
-	DCC_Packet *current;
+  /* USER CODE BEGIN StartDefaultTask */
+	// DCC_Packet *current;
 	DCC_Packet Loco_3 = {1, -1, 0x03, {0x00, 0x00, 0x00, 0x00, 0x00}, 0x00};
 	DCC_Packet_set_speed(&Loco_3, 55, 1);
-	osMessagePut(dccPAcketQueueHandle, DCC_Packet_Idle, 0);
-	osMessagePut(dccPAcketQueueHandle, Loco_3, 0);
+	osMessageQueuePut(dccPAcketQueueHandle, &DCC_Packet_Idle, 0, osWaitForever);
+	osMessageQueuePut(dccPAcketQueueHandle, &Loco_3, 0U, osWaitForever);
 
 	int j = 0;
 
 	/* Infinite loop */
 	for(;;)
 	{
-		osDelay(1);
+		osDelay(100);
 	}
-/* USER CODE END StartDefaultTask */
+  /* USER CODE END StartDefaultTask */
 }
-
 
 /* USER CODE BEGIN Header_StartDccTask */
 /**
@@ -155,15 +154,15 @@ void StartDefaultTask(void *argument)
  * @retval None
  */
 /* USER CODE END Header_StartDccTask */
-__weak void StartDccTask(void *argument)
+void StartDccTask(void *argument)
 {
-	/* USER CODE BEGIN StartDccTask */
+  /* USER CODE BEGIN StartDccTask */
 	/* Infinite loop */
 	for(;;)
 	{
 		osDelay(1);
 	}
-	/* USER CODE END StartDccTask */
+  /* USER CODE END StartDccTask */
 }
 
 /* Private application code --------------------------------------------------*/

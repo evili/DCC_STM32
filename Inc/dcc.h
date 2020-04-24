@@ -1,6 +1,9 @@
 #ifndef __DCC__
 #define __DCC__
 
+#include "cmsis_os.h"
+#include "main.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -87,29 +90,16 @@ extern const DCC_Packet DCC_Packet_Stop;
 
 #define DCC_QUEUE_MAX 40
 
-typedef struct DCC_Packet_Queue {
-	DCC_Packet *list[MAX_NODES];
-	int front;
-	int rear;
-	int pivot;
-} DCC_Packet_Queue;
-
-void DCC_Packet_Queue_init(DCC_Packet_Queue *queue);
-int DCC_Packet_Queue_Add_DCC_Packet(DCC_Packet_Queue *queue, DCC_Packet *packet);
-int DCC_Packet_Queue_delete(DCC_Packet_Queue *q, DCC_Packet *p);
-DCC_Packet *DCC_Packet_Queue_next(DCC_Packet_Queue *q);
-DCC_Packet *DCC_Packet_Queue_peek(DCC_Packet_Queue *q);
-
 typedef struct DCC_Packet_Pump {
     DCC_Bit next_bit;
     DCC_Packet_State status;
     unsigned char      bit;
     unsigned char data_count;
-    DCC_Packet_Queue *queue;
+    osMessageQueueId_t queue;
+    DCC_Packet *packet;
 } DCC_Packet_Pump;
 
-void DCC_Packet_Pump_Emit(DCC_Bit);
-void DCC_Packet_Pump_init(DCC_Packet_Pump *pump, DCC_Packet_Queue *queue);
+void DCC_Packet_Pump_init(DCC_Packet_Pump *pump, osMessageQueueId_t mq_id);
 unsigned int DCC_Packet_Pump_next(DCC_Packet_Pump *pump);
 
 // void dcc_pretty_print(DCC_Packet packet, const char *string);

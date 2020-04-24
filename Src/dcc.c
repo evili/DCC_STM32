@@ -1,5 +1,6 @@
 #include "dcc.h"
 #include "bits.h"
+#include "cmsis_os.h"
 
 #ifndef NULL
 #define NULL 0
@@ -82,103 +83,18 @@ void DCC_Packet_to_DCC_Stream(DCC_Packet *packet, DCC_Stream *stream) {
 //  assert(data_bit == (stream->nbits % 8));
 }
 
-
-void DCC_Packet_Queue_init(DCC_Packet_Queue *q) {
-	q->front = -1;
-	q->rear  = -1;
-	q->pivot = -1;
-	DCC_Packet_Queue_Add_DCC_Packet(q, (DCC_Packet *) &DCC_Packet_Idle);
-}
-
-int  DCC_Packet_Queue_Add_DCC_Packet(DCC_Packet_Queue *q, DCC_Packet *packet) {
-
-	  if((q->front == 0 && q->rear == FINAL_NODE) ||
-	     (q->front == (q->rear+1))) {
-	    return QUEUE_ERR_FULL;
-	  }
-
-	  if(q->front == -1) {
-	    q->front = 0;
-	    q->rear  = 0;
-	    q->pivot = 0;
-	  }
-	  else {
-	    inc_index(&q->rear);
-	  }
-
-	  q->list[q->rear] = packet;
-
-	  return QUEUE_OK;
-}
-
-int DCC_Packet_Queue_delete(DCC_Packet_Queue *q, DCC_Packet *p) {
-  if(q->front == -1) {
-    return QUEUE_ERR_EMPTY;
-  }
-
-  if(q->front == q->rear) {
-    if(p == q->list[q->front]) {
-      q->list[q->front] = NULL;
-      q->front = -1;
-      q->rear  = -1;
-      q->pivot = -1;
-      return QUEUE_OK;
-    }
-    else {
-      return QUEUE_ERR_NOT_FOUND;
-    }
-  }
-
-  int found = -1;
-  for(int i = q->front; i != q->rear; i = (i+1) % MAX_NODES) {
-    if (p == q->list[i])
-      found = 1;
-  }
-  if(found > 0) {
-    for(int src = (found-1) % MAX_NODES, dst = found;
-	src != q->front; dec_index(&dst), dec_index(&src)) {
-      q->list[dst] = q->list[src];
-    }
-    q->list[q->front] = NULL;
-    if (q->pivot == q->front) {
-      inc_index(&q->pivot);
-    }
-    inc_index(&q->front);
-    return QUEUE_OK;
-  }
-  else {
-    return QUEUE_ERR_NOT_FOUND;
-  }
-}
-
-DCC_Packet *DCC_Packet_Queue_next(DCC_Packet_Queue *q) {
-	  DCC_Packet *packet = NULL;
-	  if (q->pivot != -1) {
-	    packet = q->list[q->pivot];
-	    q->pivot = (q->pivot == q->rear) ? q->front : q->pivot+1;
-	    q->pivot %= MAX_NODES;
-	  }
-	  return packet;
-}
-
-DCC_Packet *DCC_Packet_Queue_peek(DCC_Packet_Queue *q) {
-	DCC_Packet *packet = NULL;
-	if (q->pivot != -1)
-		packet = q->list[q->pivot];
-	return packet;
-}
-
-void DCC_Packet_Pump_init(DCC_Packet_Pump *pump, DCC_Packet_Queue *queue) {
-  pump->queue = queue;
+void DCC_Packet_Pump_init(DCC_Packet_Pump *pump, osMessageQueueId_t mq_id) {
   pump->status = DCC_PACKET_PREAMBLE;
   pump->bit = 0;
   pump->data_count = 0;
+  pump->queue = mq_id;
+  osStatus_t status = osMessageQueueGet(mq_id, pump->packet, NULL, osWaitForever);
+  if(status != osOK)
+	  assert_failed((uint8_t *)__FILE__, __LINE__);
 }
 
 unsigned int DCC_Packet_Pump_next(DCC_Packet_Pump *pump) {
   unsigned int emit = DCC_ZERO;
-  DCC_Packet *packet = DCC_Packet_Queue_peek(pump->queue);
-  // printf("STATUS: %u, BIT: %u, DATA_COUNT: %u\n", pump->status, pump->bit, pump->data_count);
   switch (pump->status) {
     case DCC_PACKET_PREAMBLE:
       emit = DCC_ONE;
@@ -194,7 +110,7 @@ unsigned int DCC_Packet_Pump_next(DCC_Packet_Pump *pump) {
       pump->bit = 0;
       break;
     case DCC_PACKET_ADDRESS:
-      emit = ((packet->address >> (pump->bit)) & (0x01)) ? DCC_ONE_BIT_FREQ : DCC_ZERO_BIT_FREQ;
+      emit = ((pump->packet->address >> (pump->bit)) & (0x01)) ? DCC_ONE_BIT_FREQ : DCC_ZERO_BIT_FREQ;
       pump->bit++;
       if (pump->bit >= DCC_PACKET_ADDRES_LEN) {
         pump->status = DCC_PACKET_DATA_START;
@@ -207,13 +123,13 @@ unsigned int DCC_Packet_Pump_next(DCC_Packet_Pump *pump) {
       pump->status = DCC_PACKET_DATA;
       break;
     case DCC_PACKET_DATA:
-      emit = ((packet->data[pump->data_count] >> (pump->bit)) & (0x01)) ? DCC_ONE_BIT_FREQ : DCC_ZERO_BIT_FREQ;
+      emit = ((pump->packet->data[pump->data_count] >> (pump->bit)) & (0x01)) ? DCC_ONE_BIT_FREQ : DCC_ZERO_BIT_FREQ;
       pump->bit++;
       if (pump->bit >= DCC_PACKET_DATA_LEN) {
         pump->bit = 0;
         pump->data_count++;
         pump->status = DCC_PACKET_DATA_START;
-        if (pump->data_count >= packet->data_len) {
+        if (pump->data_count >= pump->packet->data_len) {
           pump->status = DCC_PACKET_CRC_START;
           pump->data_count = 0;
         }
@@ -225,7 +141,7 @@ unsigned int DCC_Packet_Pump_next(DCC_Packet_Pump *pump) {
       pump->bit = 0;
       break;
     case DCC_PACKET_CRC:
-      emit = ((packet->crc >> (pump->bit)) & (0x01)) ? DCC_ONE_BIT_FREQ : DCC_ZERO_BIT_FREQ;
+      emit = ((pump->packet->crc >> (pump->bit)) & (0x01)) ? DCC_ONE_BIT_FREQ : DCC_ZERO_BIT_FREQ;
       pump->bit++;
       if (pump->bit >= DCC_PACKET_CRC_LEN) {
         pump->status = DCC_PACKET_END;
@@ -237,15 +153,17 @@ unsigned int DCC_Packet_Pump_next(DCC_Packet_Pump *pump) {
       pump->status = DCC_PACKET_PREAMBLE;
       pump->bit = 0;
       pump->data_count = 0;
-      if (packet->count > 0) {
-        packet->count--;
+      if (pump->packet->count > 0) {
+        pump->packet->count--;
       }
       // Grab next packet.
-      if (packet->count == 0) {
-    	  DCC_Packet_Queue_delete(pump->queue, packet);
+      if (pump->packet->count == 0) {
+    	  //DCC_Packet_Queue_delete(pump->queue, packet);
       }
       else {
-        packet = DCC_Packet_Queue_next(pump->queue);
+        osStatus_t status = osMessageQueuePut(pump->queue, pump->packet, NULL, 0U);
+        if(status != osOK)
+      	  assert_failed((uint8_t *)__FILE__, __LINE__);
       }
       break;
   }
