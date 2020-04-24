@@ -96,10 +96,11 @@ typedef struct DCC_Packet_Pump {
     uint8_t bit;
     uint8_t data_count;
     osMessageQueueId_t queue;
+    osMemoryPoolId_t pool;
     DCC_Packet *packet;
 } DCC_Packet_Pump;
 
-osStatus_t DCC_Packet_Pump_init(DCC_Packet_Pump *pump, osMessageQueueId_t mq_id);
+osStatus_t DCC_Packet_Pump_init(DCC_Packet_Pump *pump, osMessageQueueId_t mq_id, osMemoryPoolId_t mp_id);
 unsigned int DCC_Packet_Pump_next(DCC_Packet_Pump *pump);
 
 // void dcc_pretty_print(DCC_Packet packet, const char *string);

@@ -32,11 +32,16 @@ extern "C" {
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "cmsis_os.h"
 /* USER CODE END Includes */
 
 /* Exported types ------------------------------------------------------------*/
 /* USER CODE BEGIN ET */
+
+typedef struct dccTaskArgument_s  {
+  osMessageQueueId_t queue;
+  osMemoryPoolId_t pool;
+} dccTaskArgument_t;
 
 /* USER CODE END ET */
 

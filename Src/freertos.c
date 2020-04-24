@@ -22,7 +22,6 @@
 #include "FreeRTOS.h"
 #include "task.h"
 #include "main.h"
-#include "printf-stdarg.h"
 #include "cmsis_os.h"
 
 /* Private includes ----------------------------------------------------------*/
@@ -47,6 +46,10 @@
 
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN Variables */
+osMemoryPoolId_t dccPacketPoolHandle;
+const osMemoryPoolAttr_t dccPacketPool_attributes = {
+  .name = "dccPacketPool"
+};
 
 /* USER CODE END Variables */
 /* Definitions for defaultTask */
@@ -63,10 +66,10 @@ const osThreadAttr_t dccTask_attributes = {
   .priority = (osPriority_t) osPriorityHigh4,
   .stack_size = 128 * 4
 };
-/* Definitions for dccPAcketQueue */
-osMessageQueueId_t dccPAcketQueueHandle;
-const osMessageQueueAttr_t dccPAcketQueue_attributes = {
-  .name = "dccPAcketQueue"
+/* Definitions for dccPacketQueue */
+osMessageQueueId_t dccPacketQueueHandle;
+const osMessageQueueAttr_t dccPacketQueue_attributes = {
+  .name = "dccPacketQueue"
 };
 
 /* Private function prototypes -----------------------------------------------*/
@@ -102,11 +105,16 @@ void MX_FREERTOS_Init(void) {
   /* USER CODE END RTOS_TIMERS */
 
   /* Create the queue(s) */
-  /* creation of dccPAcketQueue */
-  dccPAcketQueueHandle = osMessageQueueNew (DCC_QUEUE_LEN, sizeof(DCC_Packet *), &dccPAcketQueue_attributes);
-
+  /* creation of dccPacketQueue */
+  dccPacketQueueHandle = osMessageQueueNew (20, sizeof(DCC_Packet), &dccPacketQueue_attributes);
+  const dccTaskArgument_t dccArgument = {
+    .queue = dccPacketQueueHandle,
+    .pool  = dccPacketPoolHandle
+  };
   /* USER CODE BEGIN RTOS_QUEUES */
 	/* add queues, ... */
+  dccPacketPoolHandle = osMemoryPoolNew(DCC_QUEUE_LEN, sizeof(DCC_Packet), &dccPacketPool_attributes);
+
   /* USER CODE END RTOS_QUEUES */
 
   /* Create the thread(s) */
@@ -114,7 +122,7 @@ void MX_FREERTOS_Init(void) {
   defaultTaskHandle = osThreadNew(StartDefaultTask, NULL, &defaultTask_attributes);
 
   /* creation of dccTask */
-  dccTaskHandle = osThreadNew(StartDccTask, (void*) &dccPAcketQueueHandle, &dccTask_attributes);
+  dccTaskHandle = osThreadNew(StartDccTask, (void*) &dccPacketQueueHandle, &dccTask_attributes);
 
   /* USER CODE BEGIN RTOS_THREADS */
 	/* add threads, ... */
@@ -167,8 +175,9 @@ void StartDccTask(void *argument)
 	DCC_Packet_Pump *pump = pvPortMalloc(sizeof(DCC_Packet_Pump));
 	if(NULL == pump)
 		osThreadExit();
-	osMessageQueueId_t *dccQueue = (osMessageQueueId_t *) argument;
-	if (NULL == dccQueue) {
+	osMessageQueueId_t *dccQueue = (dccArgument *) argument->queue;
+	osMemoryPoolId_t *dccPool = (dccArgument *) argument->pool;
+	if ((NULL == dccQueue) || (NULL == dccPool)) {
 		vPortFree(pump);
 		osThreadExit();
 	}

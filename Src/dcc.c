@@ -83,14 +83,17 @@ void DCC_Packet_to_DCC_Stream(DCC_Packet *packet, DCC_Stream *stream) {
 //  assert(data_bit == (stream->nbits % 8));
 }
 
-osStatus_t DCC_Packet_Pump_init(DCC_Packet_Pump *pump, osMessageQueueId_t mq_id) {
+osStatus_t DCC_Packet_Pump_init(DCC_Packet_Pump *pump,
+				osMessageQueueId_t mq_id,
+				osMemoryPoolId_t mp_id) {
   osStatus_t ost = osErrorNoMemory;
   pump->status = DCC_PACKET_PREAMBLE;
   pump->bit = 0;
   pump->data_count = 0;
   pump->queue = mq_id;
-  pump->packet = pvPortMalloc(sizeof(DCC_Packet));
-  if(NULL!=pump->packet)
+  pump->pool = mp_id;
+  pump->packet = (DCC_Packet *) osMemoryPoolAlloc(pump->pool, 0L);
+  if(NULL != pump->packet)
 	  ost = osOK;
   if(ost != osOK)
 	  assert_failed((uint8_t *)__FILE__, __LINE__);
@@ -98,7 +101,7 @@ osStatus_t DCC_Packet_Pump_init(DCC_Packet_Pump *pump, osMessageQueueId_t mq_id)
 }
 
 unsigned int DCC_Packet_Pump_next(DCC_Packet_Pump *pump) {
-  unsigned int emit = DCC_ZERO;
+  unsigned int emit;
   osStatus_t status;
   switch (pump->status) {
     case DCC_PACKET_PREAMBLE:
@@ -125,6 +128,7 @@ unsigned int DCC_Packet_Pump_next(DCC_Packet_Pump *pump) {
     case DCC_PACKET_DATA_START:
       emit = DCC_ZERO_BIT_FREQ;
       pump->bit = 0;
+      pump->data_count = 0;
       pump->status = DCC_PACKET_DATA;
       break;
     case DCC_PACKET_DATA:
@@ -163,7 +167,9 @@ unsigned int DCC_Packet_Pump_next(DCC_Packet_Pump *pump) {
       }
       // Grab next packet.
       if (pump->packet->count == 0) {
-    	  //DCC_Packet_Queue_delete(pump->queue, packet);
+	status = osMemoryPoolFree(pump->pool, pump->packet);
+        if(status != osOK)
+      	  assert_failed((uint8_t *)__FILE__, __LINE__);
       }
       else {
         status = osMessageQueuePut(pump->queue, pump->packet, 0U, 0U);
@@ -174,8 +180,6 @@ unsigned int DCC_Packet_Pump_next(DCC_Packet_Pump *pump) {
       if(status != osOK) {
     	  if (0 == osMessageQueueGetCount(pump->queue))
     		  assert_failed((uint8_t *)__FILE__, __LINE__);
-    	  // SHOW MUST GO ON
-    	  // pump->packet = &DCC_Packet_Idle;
       }
       break;
   }
