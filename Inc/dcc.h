@@ -66,11 +66,11 @@ typedef enum {
 } DCC_Packet_State;
 
 typedef struct DCC_Packet {
-  int data_len;
-  int count;
-  unsigned char address;
-  unsigned char data[DCC_MAX_DATA_BYTES];
-  unsigned char crc;
+  uint8_t  data_len;
+  int      count;
+  uint16_t address;
+  uint8_t  data[DCC_MAX_DATA_BYTES];
+  uint8_t  crc;
 } DCC_Packet;
 
 typedef struct DCC_Stream {
@@ -83,23 +83,23 @@ void DCC_Packet_set_address(DCC_Packet *p, unsigned char addr);
 void DCC_Packet_set_speed(DCC_Packet *p, unsigned char speed, unsigned char direction);
 void DCC_Packet_to_DCC_Stream(DCC_Packet *packet, DCC_Stream *stream);
 
-extern const DCC_Packet DCC_Packet_Idle;
-extern const DCC_Packet DCC_Packet_Reset;
-extern const DCC_Packet DCC_Packet_Stop;
-
-
-#define DCC_QUEUE_MAX 40
+//extern const DCC_Packet DCC_Packet_Idle;
+//extern const DCC_Packet DCC_Packet_Reset;
+//extern const DCC_Packet DCC_Packet_Stop;
+#define DCC_PACKET_IDLE  {1, -1, 0xFF, {0x00, 0x00, 0x00, 0x00, 0x00}, 0xFF}
+#define DCC_PACKET_RESET {1,  0, 0x00, {0x00, 0x00, 0x00, 0x00, 0x00}, 0x00}
+#define DCC_PACKET_STOP  {1,  0, 0x00, {0x00, 0x00, 0x00, 0x00, 0x00}, 0x00}
 
 typedef struct DCC_Packet_Pump {
     DCC_Bit next_bit;
     DCC_Packet_State status;
-    unsigned char      bit;
-    unsigned char data_count;
+    uint8_t bit;
+    uint8_t data_count;
     osMessageQueueId_t queue;
     DCC_Packet *packet;
 } DCC_Packet_Pump;
 
-void DCC_Packet_Pump_init(DCC_Packet_Pump *pump, osMessageQueueId_t mq_id);
+osStatus_t DCC_Packet_Pump_init(DCC_Packet_Pump *pump, osMessageQueueId_t mq_id);
 unsigned int DCC_Packet_Pump_next(DCC_Packet_Pump *pump);
 
 // void dcc_pretty_print(DCC_Packet packet, const char *string);

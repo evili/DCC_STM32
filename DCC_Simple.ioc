@@ -1,6 +1,6 @@
 #MicroXplorer Configuration settings - do not modify
 PA11.GPIO_Speed=GPIO_SPEED_FREQ_VERY_HIGH
-FREERTOS.Queues01=dccPAcketQueue,20,uint16_t,0,Dynamic,NULL,NULL
+FREERTOS.Queues01=dccPAcketQueue,20,DCC_Packet *,0,Dynamic,NULL,NULL
 PB13.GPIOParameters=GPIO_Speed,GPIO_PuPd,GPIO_Mode
 RCC.USART1Freq_Value=108000000
 RCC.TIM17Freq_Value=72000000
@@ -100,7 +100,7 @@ RCC.PLLQoutputFreq_Value=48000000
 ProjectManager.ProjectFileName=DCC_Simple.ioc
 RCC.ADC12outputFreq_Value=72000000
 TIM1.OCPolarity_2=TIM_OCPOLARITY_LOW
-FREERTOS.Tasks01=defaultTask,24,128,StartDefaultTask,Default,NULL,Dynamic,NULL,NULL;dccTask,44,128,StartDccTask,Default,NULL,Dynamic,NULL,NULL
+FREERTOS.Tasks01=defaultTask,24,128,StartDefaultTask,Default,NULL,Dynamic,NULL,NULL;dccTask,44,128,StartDccTask,Default,&dccPAcketQueueHandle,Dynamic,NULL,NULL
 Mcu.PinsNb=34
 PA1.GPIO_Mode=GPIO_MODE_AF_PP
 PE11.GPIO_Speed=GPIO_SPEED_FREQ_HIGH
@@ -246,7 +246,7 @@ PA12.Locked=true
 Mcu.IP1=DMA
 PA12.Signal=USB_OTG_FS_DP
 TIM1.Prescaler=0
-Mcu.UserConstants=DCC_ZERO_ARR,43200;DCC_ZERO_CCR,21600;DCC_ONE_ARR,25058;DCC_ONE_CCR,12529;DCC_PACKET_QUEUE_LEN,20
+Mcu.UserConstants=DCC_ZERO_ARR,43200;DCC_ZERO_CCR,21600;DCC_ONE_ARR,25058;DCC_ONE_CCR,12529;DCC_QUEUE_LEN,20
 PC1.GPIOParameters=GPIO_Speed,GPIO_PuPd,GPIO_Mode
 RCC.SDMMCFreq_Value=216000000
 PB0.PinState=GPIO_PIN_RESET

@@ -64,6 +64,7 @@ void MX_FREERTOS_Init(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
+#if 0
 #ifdef __GNUC__
 /* With GCC/RAISONANCE, small printf (option LD Linker->Libraries->Small printf
  set to 'Yes') calls __io_putchar() */
@@ -71,6 +72,7 @@ void MX_FREERTOS_Init(void);
 #else
 #define PUTCHAR_PROTOTYPE int fputc(int ch, FILE *f)
 #endif /* __GNUC__ */
+#endif
 
 /* USER CODE END 0 */
 
@@ -121,12 +123,11 @@ int main(void)
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
-  {
+  {}
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
   /* USER CODE END 3 */
-  }
 }
 
 /**
@@ -189,7 +190,7 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
-
+#if 0
 /**
  * @brief Retargets the C library printf function to the USART.
  * @param None
@@ -203,7 +204,7 @@ PUTCHAR_PROTOTYPE
 
  return ch;
 }
-
+#endif
 /* USER CODE END 4 */
 
  /**
@@ -252,7 +253,7 @@ void assert_failed(uint8_t *file, uint32_t line)
   /* USER CODE BEGIN 6 */
   /* User can add his own implementation to report the file name and line number,
      tex: printf("Wrong parameters value: file %s on line %d\r\n", file, line) */
-	// printf("Wrong parameters value: file %s on line %lu\r\n", file, line);
+	 // printf("Wrong parameters value: file %s on line %lu\r\n", file, line);
   /* USER CODE END 6 */
 }
 #endif /* USE_FULL_ASSERT */

@@ -6,11 +6,11 @@
 #define NULL 0
 #endif
 
-const DCC_Packet DCC_Packet_Idle  = {1, -1, 0xFF, {0x00, 0x00, 0x00, 0x00, 0x00}, 0xFF};
+//const DCC_Packet DCC_Packet_Idle  = {1, -1, 0xFF, {0x00, 0x00, 0x00, 0x00, 0x00}, 0xFF};
 // TEST PATTERN of alternin 1 and 0 in adress, data and crc
 // const DCC_Packet DCC_Packet_Idle  = {1, -1, 0x50, {0x05, 0x00, 0x00, 0x00, 0x00}, 0x55};
-const DCC_Packet DCC_Packet_Reset = {1,  0, 0x00, {0x00, 0x00, 0x00, 0x00, 0x00}, 0x00};
-const DCC_Packet DCC_Packet_Stop  = {1,  0, 0x00, {0x40, 0x00, 0x00, 0x00, 0x00}, 0x00};
+//const DCC_Packet DCC_Packet_Reset = {1,  0, 0x00, {0x00, 0x00, 0x00, 0x00, 0x00}, 0x00};
+//const DCC_Packet DCC_Packet_Stop  = {1,  0, 0x00, {0x40, 0x00, 0x00, 0x00, 0x00}, 0x00};
 
 
 void inc_index(int *index) {
@@ -83,18 +83,23 @@ void DCC_Packet_to_DCC_Stream(DCC_Packet *packet, DCC_Stream *stream) {
 //  assert(data_bit == (stream->nbits % 8));
 }
 
-void DCC_Packet_Pump_init(DCC_Packet_Pump *pump, osMessageQueueId_t mq_id) {
+osStatus_t DCC_Packet_Pump_init(DCC_Packet_Pump *pump, osMessageQueueId_t mq_id) {
+  osStatus_t ost = osErrorNoMemory;
   pump->status = DCC_PACKET_PREAMBLE;
   pump->bit = 0;
   pump->data_count = 0;
   pump->queue = mq_id;
-  osStatus_t status = osMessageQueueGet(mq_id, pump->packet, NULL, osWaitForever);
-  if(status != osOK)
+  pump->packet = pvPortMalloc(sizeof(DCC_Packet));
+  if(NULL!=pump->packet)
+	  ost = osOK;
+  if(ost != osOK)
 	  assert_failed((uint8_t *)__FILE__, __LINE__);
+  return ost;
 }
 
 unsigned int DCC_Packet_Pump_next(DCC_Packet_Pump *pump) {
   unsigned int emit = DCC_ZERO;
+  osStatus_t status;
   switch (pump->status) {
     case DCC_PACKET_PREAMBLE:
       emit = DCC_ONE;
@@ -161,9 +166,16 @@ unsigned int DCC_Packet_Pump_next(DCC_Packet_Pump *pump) {
     	  //DCC_Packet_Queue_delete(pump->queue, packet);
       }
       else {
-        osStatus_t status = osMessageQueuePut(pump->queue, pump->packet, NULL, 0U);
+        status = osMessageQueuePut(pump->queue, pump->packet, 0U, 0U);
         if(status != osOK)
       	  assert_failed((uint8_t *)__FILE__, __LINE__);
+      }
+      status = osMessageQueueGet(pump->queue, pump->packet, 0U, 0U);
+      if(status != osOK) {
+    	  if (0 == osMessageQueueGetCount(pump->queue))
+    		  assert_failed((uint8_t *)__FILE__, __LINE__);
+    	  // SHOW MUST GO ON
+    	  // pump->packet = &DCC_Packet_Idle;
       }
       break;
   }

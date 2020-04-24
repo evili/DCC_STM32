@@ -22,6 +22,7 @@
 #include "FreeRTOS.h"
 #include "task.h"
 #include "main.h"
+#include "printf-stdarg.h"
 #include "cmsis_os.h"
 
 /* Private includes ----------------------------------------------------------*/
@@ -102,7 +103,7 @@ void MX_FREERTOS_Init(void) {
 
   /* Create the queue(s) */
   /* creation of dccPAcketQueue */
-  dccPAcketQueueHandle = osMessageQueueNew (20, sizeof(uint16_t), &dccPAcketQueue_attributes);
+  dccPAcketQueueHandle = osMessageQueueNew (DCC_QUEUE_LEN, sizeof(DCC_Packet *), &dccPAcketQueue_attributes);
 
   /* USER CODE BEGIN RTOS_QUEUES */
 	/* add queues, ... */
@@ -113,7 +114,7 @@ void MX_FREERTOS_Init(void) {
   defaultTaskHandle = osThreadNew(StartDefaultTask, NULL, &defaultTask_attributes);
 
   /* creation of dccTask */
-  dccTaskHandle = osThreadNew(StartDccTask, NULL, &dccTask_attributes);
+  dccTaskHandle = osThreadNew(StartDccTask, (void*) &dccPAcketQueueHandle, &dccTask_attributes);
 
   /* USER CODE BEGIN RTOS_THREADS */
 	/* add threads, ... */
@@ -132,17 +133,22 @@ void StartDefaultTask(void *argument)
 {
   /* USER CODE BEGIN StartDefaultTask */
 	// DCC_Packet *current;
-	DCC_Packet Loco_3 = {1, -1, 0x03, {0x00, 0x00, 0x00, 0x00, 0x00}, 0x00};
-	DCC_Packet_set_speed(&Loco_3, 55, 1);
-	osMessageQueuePut(dccPAcketQueueHandle, &DCC_Packet_Idle, 0, osWaitForever);
-	osMessageQueuePut(dccPAcketQueueHandle, &Loco_3, 0U, osWaitForever);
+	// DCC_Packet Idle = DCC_PACKET_IDLE;
+	// DCC_Packet Loco_3 = {1, -1, 0x03, {0x00, 0x00, 0x00, 0x00, 0x00}, 0x00};
+	// DCC_Packet_set_speed(&Loco_3, 55, 1);
+	// osMessageQueuePut(dccPAcketQueueHandle, &Idle, 0U, osWaitForever);
+	// osMessageQueuePut(dccPAcketQueueHandle, &Loco_3, 0U, osWaitForever);
+	printf("Starting Default Task.\n");
 
 	int j = 0;
 
 	/* Infinite loop */
 	for(;;)
 	{
-		osDelay(100);
+		HAL_GPIO_TogglePin(LED_Blue_GPIO_Port, LED_Blue_Pin);
+		//printf("Main Task %d\n", j);
+		j++;
+		osDelay(1000);
 	}
   /* USER CODE END StartDefaultTask */
 }
@@ -157,10 +163,38 @@ void StartDefaultTask(void *argument)
 void StartDccTask(void *argument)
 {
   /* USER CODE BEGIN StartDccTask */
+	unsigned int bit;
+	DCC_Packet_Pump *pump = pvPortMalloc(sizeof(DCC_Packet_Pump));
+	if(NULL == pump)
+		osThreadExit();
+	osMessageQueueId_t *dccQueue = (osMessageQueueId_t *) argument;
+	if (NULL == dccQueue) {
+		vPortFree(pump);
+		osThreadExit();
+	}
+	printf("Initializing DCC Pump. %s\n", "OK");
+	DCC_Packet_Pump_init(pump, *dccQueue);
+	printf("IDLE PACKET: {%u, %u, {%u}, %u : %d}\n",
+			pump->packet->data_len,
+			pump->packet->address,
+			pump->packet->data[0],
+			pump->packet->crc,
+			pump->packet->count
+			);
+	printf("Entering loop for DCC Pump. %s\n", "OK");
 	/* Infinite loop */
 	for(;;)
 	{
-		osDelay(1);
+		if ((DCC_PACKET_PREAMBLE == pump->status) && (0 == pump->bit)) {
+			printf("\n\n%s\n", "PACKET:");
+		}
+		printf("STATUS: %u, NBIT: %u, NDATA: %u, ", pump->status, pump->bit, pump->data_count);
+		bit = (DCC_ONE_BIT_FREQ == DCC_Packet_Pump_next(pump));
+		printf("BIT: %u\n", bit);
+		//printf("%u", (DCC_ONE_BIT_FREQ == bit));
+
+		HAL_GPIO_TogglePin(LED_Red_GPIO_Port, LED_Red_Pin);
+		osDelay(500);
 	}
   /* USER CODE END StartDccTask */
 }
