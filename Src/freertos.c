@@ -27,6 +27,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */     
 #include "dcc.h"
+#include "printf-stdarg.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -107,14 +108,14 @@ void MX_FREERTOS_Init(void) {
   /* Create the queue(s) */
   /* creation of dccPacketQueue */
   dccPacketQueueHandle = osMessageQueueNew (20, sizeof(DCC_Packet), &dccPacketQueue_attributes);
-  const dccTaskArgument_t dccArgument = {
-    .queue = dccPacketQueueHandle,
-    .pool  = dccPacketPoolHandle
-  };
+
   /* USER CODE BEGIN RTOS_QUEUES */
 	/* add queues, ... */
   dccPacketPoolHandle = osMemoryPoolNew(DCC_QUEUE_LEN, sizeof(DCC_Packet), &dccPacketPool_attributes);
-
+  dccTaskArgument_t dccArgument = {
+		  .queue = dccPacketQueueHandle,
+		  .pool = dccPacketPoolHandle
+  };
   /* USER CODE END RTOS_QUEUES */
 
   /* Create the thread(s) */
@@ -122,7 +123,7 @@ void MX_FREERTOS_Init(void) {
   defaultTaskHandle = osThreadNew(StartDefaultTask, NULL, &defaultTask_attributes);
 
   /* creation of dccTask */
-  dccTaskHandle = osThreadNew(StartDccTask, (void*) &dccPacketQueueHandle, &dccTask_attributes);
+  dccTaskHandle = osThreadNew(StartDccTask, (void*) &dccArgument, &dccTask_attributes);
 
   /* USER CODE BEGIN RTOS_THREADS */
 	/* add threads, ... */
@@ -175,14 +176,15 @@ void StartDccTask(void *argument)
 	DCC_Packet_Pump *pump = pvPortMalloc(sizeof(DCC_Packet_Pump));
 	if(NULL == pump)
 		osThreadExit();
-	osMessageQueueId_t *dccQueue = (dccArgument *) argument->queue;
-	osMemoryPoolId_t *dccPool = (dccArgument *) argument->pool;
+	dccTaskArgument_t *dccArgument = (dccTaskArgument_t *) argument;
+	osMessageQueueId_t *dccQueue = dccArgument->queue;
+	osMemoryPoolId_t *dccPool = dccArgument->pool;
 	if ((NULL == dccQueue) || (NULL == dccPool)) {
 		vPortFree(pump);
 		osThreadExit();
 	}
 	printf("Initializing DCC Pump. %s\n", "OK");
-	DCC_Packet_Pump_init(pump, *dccQueue);
+	DCC_Packet_Pump_init(pump, *dccQueue, *dccPool);
 	printf("IDLE PACKET: {%u, %u, {%u}, %u : %d}\n",
 			pump->packet->data_len,
 			pump->packet->address,
