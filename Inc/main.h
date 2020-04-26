@@ -39,8 +39,10 @@ extern "C" {
 /* USER CODE BEGIN ET */
 
 typedef struct dccTaskArgument_s  {
-  osMessageQueueId_t queue;
-  osMemoryPoolId_t pool;
+  osMessageQId queue;
+  // Not Implemented Yet on FreeRTOS version of CMSIS v2
+  // osMemoryPoolId_t pool;
+  osPoolId pool;
 } dccTaskArgument_t;
 
 /* USER CODE END ET */

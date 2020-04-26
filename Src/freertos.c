@@ -47,41 +47,49 @@
 
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN Variables */
+
+// Not Implemented Yet on FreeRTOS version of CMSIS v2
+
+/*
 osMemoryPoolId_t dccPacketPoolHandle;
 const osMemoryPoolAttr_t dccPacketPool_attributes = {
   .name = "dccPacketPool"
 };
+*/
+osPoolId dccPacketPoolHandle;
+osPoolDef (dccPacketPool, DCC_QUEUE_LEN, DCC_Packet);
 
 /* USER CODE END Variables */
-/* Definitions for defaultTask */
-osThreadId_t defaultTaskHandle;
-const osThreadAttr_t defaultTask_attributes = {
-  .name = "defaultTask",
-  .priority = (osPriority_t) osPriorityNormal,
-  .stack_size = 128 * 4
-};
-/* Definitions for dccTask */
-osThreadId_t dccTaskHandle;
-const osThreadAttr_t dccTask_attributes = {
-  .name = "dccTask",
-  .priority = (osPriority_t) osPriorityHigh4,
-  .stack_size = 128 * 4
-};
-/* Definitions for dccPacketQueue */
-osMessageQueueId_t dccPacketQueueHandle;
-const osMessageQueueAttr_t dccPacketQueue_attributes = {
-  .name = "dccPacketQueue"
-};
+osThreadId defaultTaskHandle;
+osThreadId dccTaskHandle;
+osMessageQId dccPacketQueueHandle;
+osMutexId dccFailMutexHandle;
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN FunctionPrototypes */
 
 /* USER CODE END FunctionPrototypes */
 
-void StartDefaultTask(void *argument);
-void StartDccTask(void *argument);
+void StartDefaultTask(void const * argument);
+void StartDccTask(void const * argument);
 
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
+
+/* GetIdleTaskMemory prototype (linked to static allocation support) */
+void vApplicationGetIdleTaskMemory( StaticTask_t **ppxIdleTaskTCBBuffer, StackType_t **ppxIdleTaskStackBuffer, uint32_t *pulIdleTaskStackSize );
+
+/* USER CODE BEGIN GET_IDLE_TASK_MEMORY */
+static StaticTask_t xIdleTaskTCBBuffer;
+static StackType_t xIdleStack[configMINIMAL_STACK_SIZE];
+  
+void vApplicationGetIdleTaskMemory( StaticTask_t **ppxIdleTaskTCBBuffer, StackType_t **ppxIdleTaskStackBuffer, uint32_t *pulIdleTaskStackSize )
+{
+  *ppxIdleTaskTCBBuffer = &xIdleTaskTCBBuffer;
+  *ppxIdleTaskStackBuffer = &xIdleStack[0];
+  *pulIdleTaskStackSize = configMINIMAL_STACK_SIZE;
+  /* place for user code */
+}                   
+/* USER CODE END GET_IDLE_TASK_MEMORY */
 
 /**
   * @brief  FreeRTOS initialization
@@ -92,6 +100,10 @@ void MX_FREERTOS_Init(void) {
   /* USER CODE BEGIN Init */
 
   /* USER CODE END Init */
+  /* Create the mutex(es) */
+  /* definition and creation of dccFailMutex */
+  osMutexDef(dccFailMutex);
+  dccFailMutexHandle = osMutexCreate(osMutex(dccFailMutex));
 
   /* USER CODE BEGIN RTOS_MUTEX */
 	/* add mutexes, ... */
@@ -106,24 +118,36 @@ void MX_FREERTOS_Init(void) {
   /* USER CODE END RTOS_TIMERS */
 
   /* Create the queue(s) */
-  /* creation of dccPacketQueue */
-  dccPacketQueueHandle = osMessageQueueNew (20, sizeof(DCC_Packet), &dccPacketQueue_attributes);
+  /* definition and creation of dccPacketQueue */
+  osMessageQDef(dccPacketQueue, 20, DCC_Packet);
+  dccPacketQueueHandle = osMessageCreate(osMessageQ(dccPacketQueue), NULL);
 
   /* USER CODE BEGIN RTOS_QUEUES */
 	/* add queues, ... */
+  // Not Implemented Yet on FreeRTOS version of CMSIS v2
+  /*
   dccPacketPoolHandle = osMemoryPoolNew(DCC_QUEUE_LEN, sizeof(DCC_Packet), &dccPacketPool_attributes);
   dccTaskArgument_t dccArgument = {
 		  .queue = dccPacketQueueHandle,
 		  .pool = dccPacketPoolHandle
   };
+  */
+  dccPacketPoolHandle = osPoolCreate(osPool(dccPacketPool));
+  dccTaskArgument_t dccArgument = {
+		  .queue = dccPacketQueueHandle,
+		  .pool = dccPacketPoolHandle
+  };
+
   /* USER CODE END RTOS_QUEUES */
 
   /* Create the thread(s) */
-  /* creation of defaultTask */
-  defaultTaskHandle = osThreadNew(StartDefaultTask, NULL, &defaultTask_attributes);
+  /* definition and creation of defaultTask */
+  osThreadDef(defaultTask, StartDefaultTask, osPriorityNormal, 0, 128);
+  defaultTaskHandle = osThreadCreate(osThread(defaultTask), NULL);
 
-  /* creation of dccTask */
-  dccTaskHandle = osThreadNew(StartDccTask, (void*) &dccArgument, &dccTask_attributes);
+  /* definition and creation of dccTask */
+  osThreadDef(dccTask, StartDccTask, osPriorityHigh, 0, 128);
+  dccTaskHandle = osThreadCreate(osThread(dccTask), (void*) &dccArgument);
 
   /* USER CODE BEGIN RTOS_THREADS */
 	/* add threads, ... */
@@ -138,7 +162,7 @@ void MX_FREERTOS_Init(void) {
  * @retval None
  */
 /* USER CODE END Header_StartDefaultTask */
-void StartDefaultTask(void *argument)
+void StartDefaultTask(void const * argument)
 {
   /* USER CODE BEGIN StartDefaultTask */
 	// DCC_Packet *current;
@@ -169,22 +193,22 @@ void StartDefaultTask(void *argument)
  * @retval None
  */
 /* USER CODE END Header_StartDccTask */
-void StartDccTask(void *argument)
+void StartDccTask(void const * argument)
 {
   /* USER CODE BEGIN StartDccTask */
 	unsigned int bit;
 	DCC_Packet_Pump *pump = pvPortMalloc(sizeof(DCC_Packet_Pump));
 	if(NULL == pump)
-		osThreadExit();
+		osThreadTerminate(osThreadGetId());
 	dccTaskArgument_t *dccArgument = (dccTaskArgument_t *) argument;
-	osMessageQueueId_t *dccQueue = dccArgument->queue;
-	osMemoryPoolId_t *dccPool = dccArgument->pool;
+	osMessageQId dccQueue = dccArgument->queue;
+	osPoolId dccPool = dccArgument->pool;
 	if ((NULL == dccQueue) || (NULL == dccPool)) {
 		vPortFree(pump);
-		osThreadExit();
+		osThreadTerminate(osThreadGetId());
 	}
 	printf("Initializing DCC Pump. %s\n", "OK");
-	DCC_Packet_Pump_init(pump, *dccQueue, *dccPool);
+	DCC_Packet_Pump_init(pump, dccQueue, dccPool);
 	printf("IDLE PACKET: {%u, %u, {%u}, %u : %d}\n",
 			pump->packet->data_len,
 			pump->packet->address,

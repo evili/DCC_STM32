@@ -83,16 +83,19 @@ void DCC_Packet_to_DCC_Stream(DCC_Packet *packet, DCC_Stream *stream) {
 //  assert(data_bit == (stream->nbits % 8));
 }
 
-osStatus_t DCC_Packet_Pump_init(DCC_Packet_Pump *pump,
-				osMessageQueueId_t mq_id,
-				osMemoryPoolId_t mp_id) {
-  osStatus_t ost = osErrorNoMemory;
+osStatus DCC_Packet_Pump_init(DCC_Packet_Pump *pump,
+				//osMessageQueueId_t mq_id,
+		        osMessageQId mq_id,
+				//osMemoryPoolId_t mp_id) {
+				osPoolId mp_id) {
+  osStatus ost = osErrorNoMemory;
   pump->status = DCC_PACKET_PREAMBLE;
   pump->bit = 0;
   pump->data_count = 0;
   pump->queue = mq_id;
   pump->pool = mp_id;
-  pump->packet = (DCC_Packet *) osMemoryPoolAlloc(pump->pool, 0L);
+  // pump->packet = (DCC_Packet *) osMemoryPoolAlloc(pump->pool, 0L);
+  pump->packet = (DCC_Packet *) osPoolCAlloc(pump->pool);
   if(NULL != pump->packet)
 	  ost = osOK;
   if(ost != osOK)
@@ -102,7 +105,8 @@ osStatus_t DCC_Packet_Pump_init(DCC_Packet_Pump *pump,
 
 unsigned int DCC_Packet_Pump_next(DCC_Packet_Pump *pump) {
   unsigned int emit;
-  osStatus_t status;
+  osStatus status;
+  osEvent event;
   switch (pump->status) {
     case DCC_PACKET_PREAMBLE:
       emit = DCC_ONE;
@@ -167,19 +171,22 @@ unsigned int DCC_Packet_Pump_next(DCC_Packet_Pump *pump) {
       }
       // Grab next packet.
       if (pump->packet->count == 0) {
-	status = osMemoryPoolFree(pump->pool, pump->packet);
+	status = osPoolFree(pump->pool, pump->packet);
         if(status != osOK)
       	  assert_failed((uint8_t *)__FILE__, __LINE__);
       }
       else {
-        status = osMessageQueuePut(pump->queue, pump->packet, 0U, 0U);
+        status = osMessagePut(pump->queue, (uint32_t) pump->packet, 0U);
         if(status != osOK)
       	  assert_failed((uint8_t *)__FILE__, __LINE__);
       }
-      status = osMessageQueueGet(pump->queue, pump->packet, 0U, 0U);
-      if(status != osOK) {
-    	  if (0 == osMessageQueueGetCount(pump->queue))
+      event = osMessageGet(pump->queue, 0U);
+      if(event.status != osEventMessage) {
+    	  if (osEventTimeout == event.status)
     		  assert_failed((uint8_t *)__FILE__, __LINE__);
+      }
+      else {
+    	  pump->packet = event.value.p;
       }
       break;
   }
