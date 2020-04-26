@@ -228,8 +228,8 @@ void StartDccTask(void const * argument)
 		printf("BIT: %u\n", bit);
 		//printf("%u", (DCC_ONE_BIT_FREQ == bit));
 
-		HAL_GPIO_TogglePin(LED_Red_GPIO_Port, LED_Red_Pin);
-		osDelay(500);
+		HAL_GPIO_TogglePin(LD_Green_GPIO_Port, LD_Green_Pin);
+		osDelay(250);
 	}
   /* USER CODE END StartDccTask */
 }

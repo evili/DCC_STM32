@@ -1,10 +1,13 @@
 #include "dcc.h"
 #include "bits.h"
 #include "cmsis_os.h"
+#include "printf-stdarg.h"
 
 #ifndef NULL
 #define NULL 0
 #endif
+
+#define DCC_ERROR(n, s) printf("E: %s: %u\n", (s), (n));
 
 //const DCC_Packet DCC_Packet_Idle  = {1, -1, 0xFF, {0x00, 0x00, 0x00, 0x00, 0x00}, 0xFF};
 // TEST PATTERN of alternin 1 and 0 in adress, data and crc
@@ -96,10 +99,11 @@ osStatus DCC_Packet_Pump_init(DCC_Packet_Pump *pump,
   pump->pool = mp_id;
   // pump->packet = (DCC_Packet *) osMemoryPoolAlloc(pump->pool, 0L);
   pump->packet = (DCC_Packet *) osPoolCAlloc(pump->pool);
+  *pump->packet = DCC_PACKET_IDLE;
   if(NULL != pump->packet)
 	  ost = osOK;
   if(ost != osOK)
-	  assert_failed((uint8_t *)__FILE__, __LINE__);
+	  DCC_ERROR(ost, "No memory");
   return ost;
 }
 
@@ -166,26 +170,32 @@ unsigned int DCC_Packet_Pump_next(DCC_Packet_Pump *pump) {
       pump->status = DCC_PACKET_PREAMBLE;
       pump->bit = 0;
       pump->data_count = 0;
+      printf("\n%s\n", "\nDCC_PACKET_END");
       if (pump->packet->count > 0) {
         pump->packet->count--;
       }
       // Grab next packet.
       if (pump->packet->count == 0) {
-	status = osPoolFree(pump->pool, pump->packet);
+    	printf("%s\n", "Count is zero. Freeing");
+    	status = osPoolFree(pump->pool, pump->packet);
         if(status != osOK)
-      	  assert_failed((uint8_t *)__FILE__, __LINE__);
+        	DCC_ERROR(status, "Can't free pool memory");
       }
       else {
+    	printf("%s\n", "Returning packet to queue");
         status = osMessagePut(pump->queue, (uint32_t) pump->packet, 0U);
         if(status != osOK)
-      	  assert_failed((uint8_t *)__FILE__, __LINE__);
+      	  DCC_ERROR(status, "Can't put on queue.");
       }
+      printf("%s\n","Getting new packet.");
       event = osMessageGet(pump->queue, 0U);
       if(event.status != osEventMessage) {
     	  if (osEventTimeout == event.status)
-    		  assert_failed((uint8_t *)__FILE__, __LINE__);
+    		  DCC_ERROR(status, "Nothing to get in queue.");
+    	  printf("%s\n", "No message in queue");
       }
       else {
+    	  printf("%s\n","Updating packet in queue");
     	  pump->packet = event.value.p;
       }
       break;

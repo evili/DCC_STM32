@@ -86,7 +86,7 @@ void DCC_Packet_to_DCC_Stream(DCC_Packet *packet, DCC_Stream *stream);
 //extern const DCC_Packet DCC_Packet_Idle;
 //extern const DCC_Packet DCC_Packet_Reset;
 //extern const DCC_Packet DCC_Packet_Stop;
-#define DCC_PACKET_IDLE  {1, -1, 0xFF, {0x00, 0x00, 0x00, 0x00, 0x00}, 0xFF}
+#define DCC_PACKET_IDLE  (DCC_Packet) {.data_len = 1, .count = -1, .address = 0xFF, .data = {0x00, 0x00, 0x00, 0x00, 0x00}, .crc = 0xFF}
 #define DCC_PACKET_RESET {1,  0, 0x00, {0x00, 0x00, 0x00, 0x00, 0x00}, 0x00}
 #define DCC_PACKET_STOP  {1,  0, 0x00, {0x00, 0x00, 0x00, 0x00, 0x00}, 0x00}
 

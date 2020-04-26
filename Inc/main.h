@@ -44,7 +44,7 @@ typedef struct dccTaskArgument_s  {
   // osMemoryPoolId_t pool;
   osPoolId pool;
 } dccTaskArgument_t;
-
+extern osMutexId dccFailMutexHandle;
 /* USER CODE END ET */
 
 /* Exported constants --------------------------------------------------------*/
