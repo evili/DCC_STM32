@@ -78,6 +78,50 @@ void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
 /* GetIdleTaskMemory prototype (linked to static allocation support) */
 void vApplicationGetIdleTaskMemory( StaticTask_t **ppxIdleTaskTCBBuffer, StackType_t **ppxIdleTaskStackBuffer, uint32_t *pulIdleTaskStackSize );
 
+/* Hook prototypes */
+void configureTimerForRunTimeStats(void);
+unsigned long getRunTimeCounterValue(void);
+void vApplicationStackOverflowHook(xTaskHandle xTask, signed char *pcTaskName);
+void vApplicationMallocFailedHook(void);
+
+/* USER CODE BEGIN 1 */
+/* Functions needed when configGENERATE_RUN_TIME_STATS is on */
+__weak void configureTimerForRunTimeStats(void)
+{
+
+}
+
+__weak unsigned long getRunTimeCounterValue(void)
+{
+return 0;
+}
+/* USER CODE END 1 */
+
+/* USER CODE BEGIN 4 */
+__weak void vApplicationStackOverflowHook(xTaskHandle xTask, signed char *pcTaskName)
+{
+   /* Run time stack overflow checking is performed if
+   configCHECK_FOR_STACK_OVERFLOW is defined to 1 or 2. This hook function is
+   called if a stack overflow is detected. */
+}
+/* USER CODE END 4 */
+
+/* USER CODE BEGIN 5 */
+__weak void vApplicationMallocFailedHook(void)
+{
+   /* vApplicationMallocFailedHook() will only be called if
+   configUSE_MALLOC_FAILED_HOOK is set to 1 in FreeRTOSConfig.h. It is a hook
+   function that will get called if a call to pvPortMalloc() fails.
+   pvPortMalloc() is called internally by the kernel whenever a task, queue,
+   timer or semaphore is created. It is also called by various parts of the
+   demo application. If heap_1.c or heap_2.c are used, then the size of the
+   heap available to pvPortMalloc() is defined by configTOTAL_HEAP_SIZE in
+   FreeRTOSConfig.h, and the xPortGetFreeHeapSize() API function can be used
+   to query the size of free heap space that remains (although it does not
+   provide information on how the remaining heap might be fragmented). */
+}
+/* USER CODE END 5 */
+
 /* USER CODE BEGIN GET_IDLE_TASK_MEMORY */
 static StaticTask_t xIdleTaskTCBBuffer;
 static StackType_t xIdleStack[configMINIMAL_STACK_SIZE];
@@ -197,6 +241,8 @@ void StartDccTask(void const * argument)
 {
   /* USER CODE BEGIN StartDccTask */
 	unsigned int bit;
+	UBaseType_t uxHighWaterMark;
+	uxHighWaterMark = uxTaskGetStackHighWaterMark( NULL );
 	DCC_Packet_Pump *pump = pvPortMalloc(sizeof(DCC_Packet_Pump));
 	if(NULL == pump)
 		osThreadTerminate(osThreadGetId());
@@ -217,6 +263,7 @@ void StartDccTask(void const * argument)
 			pump->packet->count
 			);
 	printf("Entering loop for DCC Pump. %s\n", "OK");
+	uxHighWaterMark = uxTaskGetStackHighWaterMark( NULL );
 	/* Infinite loop */
 	for(;;)
 	{
@@ -229,6 +276,7 @@ void StartDccTask(void const * argument)
 		//printf("%u", (DCC_ONE_BIT_FREQ == bit));
 
 		HAL_GPIO_TogglePin(LD_Green_GPIO_Port, LD_Green_Pin);
+		uxHighWaterMark = uxTaskGetStackHighWaterMark( NULL );
 		osDelay(250);
 	}
   /* USER CODE END StartDccTask */
