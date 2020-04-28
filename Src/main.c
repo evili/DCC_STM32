@@ -23,6 +23,7 @@
 #include "cmsis_os.h"
 #include "dma.h"
 #include "eth.h"
+#include "rng.h"
 #include "tim.h"
 #include "usart.h"
 #include "usb_otg.h"
@@ -109,6 +110,7 @@ int main(void)
   MX_TIM1_Init();
   MX_USART3_UART_Init();
   MX_USB_OTG_FS_PCD_Init();
+  MX_RNG_Init();
   /* USER CODE BEGIN 2 */
 
   /* USER CODE END 2 */

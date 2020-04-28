@@ -7,7 +7,7 @@
 #define NULL 0
 #endif
 
-#define DCC_ERROR(n, s) printf("E: %s: %u\n", (s), (n));
+#define DCC_ERROR(n, s) printf("\nE: %s: %u\n", (s), (n));
 
 //const DCC_Packet DCC_Packet_Idle  = {1, -1, 0xFF, {0x00, 0x00, 0x00, 0x00, 0x00}, 0xFF};
 // TEST PATTERN of alternin 1 and 0 in adress, data and crc
@@ -86,24 +86,20 @@ void DCC_Packet_to_DCC_Stream(DCC_Packet *packet, DCC_Stream *stream) {
 //  assert(data_bit == (stream->nbits % 8));
 }
 
-osStatus DCC_Packet_Pump_init(DCC_Packet_Pump *pump,
-				//osMessageQueueId_t mq_id,
-		        osMessageQId mq_id,
-				//osMemoryPoolId_t mp_id) {
-				osPoolId mp_id) {
+osStatus DCC_Packet_Pump_init(DCC_Packet_Pump *pump, osMessageQId mq_id) {
   osStatus ost = osErrorNoMemory;
   pump->status = DCC_PACKET_PREAMBLE;
   pump->bit = 0;
   pump->data_count = 0;
   pump->queue = mq_id;
-  pump->pool = mp_id;
-  // pump->packet = (DCC_Packet *) osMemoryPoolAlloc(pump->pool, 0L);
-  pump->packet = (DCC_Packet *) osPoolCAlloc(pump->pool);
-  *pump->packet = DCC_PACKET_IDLE;
-  if(NULL != pump->packet)
+  pump->packet = (DCC_Packet *) pvPortMalloc(sizeof(DCC_Packet));
+  if(NULL != pump->packet) {
 	  ost = osOK;
+	  *pump->packet = DCC_PACKET_IDLE;
+	  printf("\nFirst packet OK: %u\n", ost);
+  }
   if(ost != osOK)
-	  DCC_ERROR(ost, "No memory");
+	  printf("\nERROR: No memory: %u\n", ost);
   return ost;
 }
 
@@ -130,13 +126,13 @@ unsigned int DCC_Packet_Pump_next(DCC_Packet_Pump *pump) {
       pump->bit++;
       if (pump->bit >= DCC_PACKET_ADDRES_LEN) {
         pump->status = DCC_PACKET_DATA_START;
+        pump->data_count = 0;
         pump->bit = 0;
       }
       break;
     case DCC_PACKET_DATA_START:
       emit = DCC_ZERO_BIT_FREQ;
       pump->bit = 0;
-      pump->data_count = 0;
       pump->status = DCC_PACKET_DATA;
       break;
     case DCC_PACKET_DATA:
@@ -170,16 +166,14 @@ unsigned int DCC_Packet_Pump_next(DCC_Packet_Pump *pump) {
       pump->status = DCC_PACKET_PREAMBLE;
       pump->bit = 0;
       pump->data_count = 0;
-      printf("\n%s\n", "\nDCC_PACKET_END");
+      //printf("\n%s\n", "\nDCC_PACKET_END");
       if (pump->packet->count > 0) {
         pump->packet->count--;
       }
       // Grab next packet.
       if (pump->packet->count == 0) {
     	printf("%s\n", "Count is zero. Freeing");
-    	status = osPoolFree(pump->pool, pump->packet);
-        if(status != osOK)
-        	DCC_ERROR(status, "Can't free pool memory");
+    	vPortFree(pump->packet);
       }
       else {
     	printf("%s\n", "Returning packet to queue");

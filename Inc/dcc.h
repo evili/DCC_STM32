@@ -100,10 +100,7 @@ typedef struct DCC_Packet_Pump {
     DCC_Packet *packet;
 } DCC_Packet_Pump;
 
-osStatus DCC_Packet_Pump_init(DCC_Packet_Pump *pump,
-		 osMessageQId mq_id,
-		// osMemoryPoolId_t mp_id);
-		osPoolId mp_id);
+osStatus DCC_Packet_Pump_init(DCC_Packet_Pump *pump, osMessageQId mq_id);
 unsigned int DCC_Packet_Pump_next(DCC_Packet_Pump *pump);
 
 // void dcc_pretty_print(DCC_Packet packet, const char *string);
