@@ -25,7 +25,8 @@
 #include "cmsis_os.h"
 
 /* Private includes ----------------------------------------------------------*/
-/* USER CODE BEGIN Includes */     
+/* USER CODE BEGIN Includes */
+#include "tim.h"
 #include "dcc.h"
 #include "printf-stdarg.h"
 /* USER CODE END Includes */
@@ -48,23 +49,33 @@
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN Variables */
 
+DCC_Packet_Pump *pump;
+volatile uint32_t tim1_last_cnt;
+volatile uint32_t tim1_last_arr;
+
 /* USER CODE END Variables */
-osThreadId defaultTaskHandle;
-osThreadId dccTaskHandle;
-osMessageQId dccPacketQueueHandle;
+/* Definitions for defaultTask */
+osThreadId_t defaultTaskHandle;
+const osThreadAttr_t defaultTask_attributes = { .name = "defaultTask",
+		.priority = (osPriority_t) osPriorityNormal, .stack_size = 256 * 4 };
+/* Definitions for dccTask */
+osThreadId_t dccTaskHandle;
+const osThreadAttr_t dccTask_attributes = { .name = "dccTask", .priority =
+		(osPriority_t) osPriorityHigh, .stack_size = 128 * 4 };
+/* Definitions for dccPacketQueue */
+osMessageQueueId_t dccPacketQueueHandle;
+const osMessageQueueAttr_t dccPacketQueue_attributes = { .name =
+		"dccPacketQueue" };
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN FunctionPrototypes */
 
 /* USER CODE END FunctionPrototypes */
 
-void StartDefaultTask(void const * argument);
-void StartDccTask(void const * argument);
+void StartDefaultTask(void *argument);
+void StartDccTask(void *argument);
 
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
-
-/* GetIdleTaskMemory prototype (linked to static allocation support) */
-void vApplicationGetIdleTaskMemory( StaticTask_t **ppxIdleTaskTCBBuffer, StackType_t **ppxIdleTaskStackBuffer, uint32_t *pulIdleTaskStackSize );
 
 /* Hook prototypes */
 void configureTimerForRunTimeStats(void);
@@ -72,83 +83,67 @@ unsigned long getRunTimeCounterValue(void);
 
 /* USER CODE BEGIN 1 */
 /* Functions needed when configGENERATE_RUN_TIME_STATS is on */
-__weak void configureTimerForRunTimeStats(void)
-{
+__weak void configureTimerForRunTimeStats(void) {
 
 }
 
-__weak unsigned long getRunTimeCounterValue(void)
-{
+__weak unsigned long getRunTimeCounterValue(void) {
 	return 0;
 }
 /* USER CODE END 1 */
 
-/* USER CODE BEGIN GET_IDLE_TASK_MEMORY */
-static StaticTask_t xIdleTaskTCBBuffer;
-static StackType_t xIdleStack[configMINIMAL_STACK_SIZE];
-
-void vApplicationGetIdleTaskMemory( StaticTask_t **ppxIdleTaskTCBBuffer, StackType_t **ppxIdleTaskStackBuffer, uint32_t *pulIdleTaskStackSize )
-{
-	*ppxIdleTaskTCBBuffer = &xIdleTaskTCBBuffer;
-	*ppxIdleTaskStackBuffer = &xIdleStack[0];
-	*pulIdleTaskStackSize = configMINIMAL_STACK_SIZE;
-	/* place for user code */
-}                   
-/* USER CODE END GET_IDLE_TASK_MEMORY */
-
 /**
-  * @brief  FreeRTOS initialization
-  * @param  None
-  * @retval None
-  */
+ * @brief  FreeRTOS initialization
+ * @param  None
+ * @retval None
+ */
 void MX_FREERTOS_Init(void) {
-  /* USER CODE BEGIN Init */
+	/* USER CODE BEGIN Init */
 
-  /* USER CODE END Init */
+	/* USER CODE END Init */
 
-  /* USER CODE BEGIN RTOS_MUTEX */
+	/* USER CODE BEGIN RTOS_MUTEX */
 	/* add mutexes, ... */
-  /* USER CODE END RTOS_MUTEX */
+	/* USER CODE END RTOS_MUTEX */
 
-  /* USER CODE BEGIN RTOS_SEMAPHORES */
+	/* USER CODE BEGIN RTOS_SEMAPHORES */
 	/* add semaphores, ... */
-  /* USER CODE END RTOS_SEMAPHORES */
+	/* USER CODE END RTOS_SEMAPHORES */
 
-  /* USER CODE BEGIN RTOS_TIMERS */
+	/* USER CODE BEGIN RTOS_TIMERS */
 	/* start timers, add new ones, ... */
-  /* USER CODE END RTOS_TIMERS */
+	/* USER CODE END RTOS_TIMERS */
 
-  /* Create the queue(s) */
-  /* definition and creation of dccPacketQueue */
-  osMessageQDef(dccPacketQueue, 20, DCC_Packet *);
-  dccPacketQueueHandle = osMessageCreate(osMessageQ(dccPacketQueue), NULL);
+	/* Create the queue(s) */
+	/* creation of dccPacketQueue */
+	dccPacketQueueHandle = osMessageQueueNew(20, sizeof(DCC_Packet*),
+			&dccPacketQueue_attributes);
 
-  /* USER CODE BEGIN RTOS_QUEUES */
+	/* USER CODE BEGIN RTOS_QUEUES */
 	/* add queues, ... */
 	// Not Implemented Yet on FreeRTOS version of CMSIS v2
 	/*
-  dccPacketPoolHandle = osMemoryPoolNew(DCC_QUEUE_LEN, sizeof(DCC_Packet), &dccPacketPool_attributes);
-  dccTaskArgument_t dccArgument = {
-		  .queue = dccPacketQueueHandle,
-		  .pool = dccPacketPoolHandle
-  };
+	 dccPacketPoolHandle = osMemoryPoolNew(DCC_QUEUE_LEN, sizeof(DCC_Packet), &dccPacketPool_attributes);
+	 dccTaskArgument_t dccArgument = {
+	 .queue = dccPacketQueueHandle,
+	 .pool = dccPacketPoolHandle
+	 };
 	 */
 
+	/* USER CODE END RTOS_QUEUES */
 
-  /* USER CODE END RTOS_QUEUES */
+	/* Create the thread(s) */
+	/* creation of defaultTask */
+	defaultTaskHandle = osThreadNew(StartDefaultTask, NULL,
+			&defaultTask_attributes);
 
-  /* Create the thread(s) */
-  /* definition and creation of defaultTask */
-  osThreadDef(defaultTask, StartDefaultTask, osPriorityNormal, 0, 256);
-  defaultTaskHandle = osThreadCreate(osThread(defaultTask), NULL);
+	/* creation of dccTask */
+	dccTaskHandle = osThreadNew(StartDccTask, (void*) &dccPacketQueueHandle,
+			&dccTask_attributes);
 
-  /* definition and creation of dccTask */
-  osThreadDef(dccTask, StartDccTask, osPriorityHigh, 0, 128);
-  dccTaskHandle = osThreadCreate(osThread(dccTask), (void*) &dccPacketQueueHandle);
-
-  /* USER CODE BEGIN RTOS_THREADS */
+	/* USER CODE BEGIN RTOS_THREADS */
 	/* add threads, ... */
-  /* USER CODE END RTOS_THREADS */
+	/* USER CODE END RTOS_THREADS */
 
 }
 
@@ -159,10 +154,9 @@ void MX_FREERTOS_Init(void) {
  * @retval None
  */
 /* USER CODE END Header_StartDefaultTask */
-void StartDefaultTask(void const * argument)
-{
-  /* USER CODE BEGIN StartDefaultTask */
-	char  pcWriteBuffer[128];
+void StartDefaultTask(void *argument) {
+	/* USER CODE BEGIN StartDefaultTask */
+	// char  pcWriteBuffer[128];
 	// DCC_Packet *current;
 	// DCC_Packet Idle = DCC_PACKET_IDLE;
 	// DCC_Packet Loco_3 = {1, -1, 0x03, {0x00, 0x00, 0x00, 0x00, 0x00}, 0x00};
@@ -172,52 +166,62 @@ void StartDefaultTask(void const * argument)
 	printf("Starting Default Task.\n");
 
 	int j = 0;
-    #define NUM_SPEED 5
-	uint8_t speeds[NUM_SPEED] = {1, 20, 41, 80 ,121};
+#define NUM_SPEED 5
+	uint8_t speeds[NUM_SPEED] = { 1, 20, 41, 80, 121 };
+	uint32_t tim1_cnt, tim1_arr;
 	/* Infinite loop */
-	for(;;)
-	{
+	for (;;) {
 		osDelay(1000);
-		HAL_GPIO_TogglePin(LED_Blue_GPIO_Port, LED_Blue_Pin);
 		//printf("Main Task %d\n", j);
 		j++;
 		osDelay(200);
-//		vTaskList(pcWriteBuffer);
-//		printf("\n=============== TASK LIST ==============="
-//				"\nName ========== Stat == Prio == Stk = N ="
-//				"\n%s"
-//				"\n=========================================\n",
-//				pcWriteBuffer);
+		HAL_GPIO_WritePin(LED_Red_GPIO_Port, LED_Red_Pin, GPIO_PIN_RESET);
+		//		vTaskList(pcWriteBuffer);
+		//		printf("\n=============== TASK LIST ==============="
+		//				"\nName ========== Stat == Prio == Stk = N ="
+		//				"\n%s"
+		//				"\n=========================================\n",
+		//				pcWriteBuffer);
+		// Get the last timer counter and print.
+		tim1_cnt = tim1_last_cnt;
+		tim1_arr = tim1_last_arr;
+		// This should be around 50%, no 0%
+		printf("\nLAST CAPTURE COUNTER: %u/%u\n", tim1_cnt, tim1_arr);
+
 		// Inject a packet to the Queue:
-		if((j % 10) == 0) {
+		if ((j % 10) == 0) {
 			DCC_Packet *loco_3 = pvPortMalloc(sizeof(DCC_Packet));
-			if(loco_3 == NULL) {
+			if (loco_3 == NULL) {
 				printf("\nMEMORY FULL!\n");
-			}
-			else {
-				*loco_3 = (DCC_Packet) {.data_len = 3, .count = 2, .address = 3};
+			} else {
+				*loco_3 = (DCC_Packet ) { .data_len = 3, .count = 2, .address =
+								3 };
 				DCC_Packet_set_address(loco_3, 3);
 				uint8_t speed = speeds[j % NUM_SPEED];
 				DCC_Packet_set_speed(loco_3, speed, 1);
-				printf("\nLOCO 3 PACKET: {%x, %x, {%x}, %x : %d}\n",
-						loco_3->data_len,
-						loco_3->address,
-						loco_3->data[0],
-						loco_3->crc,
-						loco_3->count
-				);
-				osStatus status = osMessagePut(dccPacketQueueHandle, (uint32_t) loco_3, 100);
-				if(status == osOK){
-					printf("\nPACKET SEND FOR LOCO 3\n");
-				}
-				else if ((status == osErrorResource) || (status == osErrorTimeoutResource)){
+				//				printf("\nLOCO 3 PACKET: {%x, %x, {%x}, %x : %d}\n",
+				//						loco_3->data_len,
+				//						loco_3->address,
+				//						loco_3->data[0],
+				//						loco_3->crc,
+				//						loco_3->count
+				//				);
+				osStatus status = osMessageQueuePut(dccPacketQueueHandle,
+						(void*) loco_3, 0L, 100L);
+				if (status == osOK) {
+					//					printf("\nPACKET SEND FOR LOCO 3\n");
+					HAL_GPIO_TogglePin(LED_Blue_GPIO_Port, LED_Blue_Pin);
+				} else if ((status == osErrorResource)
+						|| (status == osErrorTimeoutResource)) {
 					printf("\nQUEUE FULL!\n");
+					HAL_GPIO_WritePin(LED_Red_GPIO_Port, LED_Red_Pin,
+							GPIO_PIN_SET);
 					vPortFree(loco_3);
 				}
 			}
 		}
 	}
-  /* USER CODE END StartDefaultTask */
+	/* USER CODE END StartDefaultTask */
 }
 
 /* USER CODE BEGIN Header_StartDccTask */
@@ -227,21 +231,19 @@ void StartDefaultTask(void const * argument)
  * @retval None
  */
 /* USER CODE END Header_StartDccTask */
-void StartDccTask(void const * argument)
-{
-  /* USER CODE BEGIN StartDccTask */
-	unsigned int bit;
-	DCC_Packet_Pump *pump;
-	osMessageQId dccQueue = *((osMessageQId *) argument);
+void StartDccTask(void *argument) {
+	/* USER CODE BEGIN StartDccTask */
+	// unsigned int bit;
+	osMessageQId dccQueue = *((osMessageQueueId_t*) argument);
 	if (NULL == dccQueue) {
-		printf("\nBad Parameter for Queue: %u\n", dccQueue);
+		printf("\nBad Parameter for Queue: %u\n", (uint32_t) dccQueue);
 		osDelay(1000);
 		osThreadTerminate(osThreadGetId());
 	}
 
 	printf("\nAllocating DCC Pump: %s\n", "OK");
 	pump = pvPortMalloc(sizeof(DCC_Packet_Pump));
-	if(NULL == pump) {
+	if (NULL == pump) {
 		printf("\nDCC Pump allocation: %s\n", "FAILED");
 		osDelay(1000);
 		osThreadTerminate(osThreadGetId());
@@ -250,33 +252,70 @@ void StartDccTask(void const * argument)
 
 	DCC_Packet_Pump_init(pump, dccQueue);
 
-	printf("\nIDLE PACKET: {%u, %u, {%u}, %u : %d}\n",
-			pump->packet->data_len,
-			pump->packet->address,
-			pump->packet->data[0],
-			pump->packet->crc,
-			pump->packet->count
-	);
+	printf("\nIDLE PACKET: {%u, %u, {%u}, %u : %d}\n", pump->packet->data_len,
+			pump->packet->address, pump->packet->data[0], pump->packet->crc,
+			pump->packet->count);
+	// Freeze TIM1 on debug
+	printf("\nPreparing TIMER%d for DCC.\n", 1);
+	// Disable timer on debug
+	__HAL_DBGMCU_FREEZE_TIM1();
+	__HAL_DBGMCU_FREEZE_TIM7();
+	// Activate channel 2
+	HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
+	// Activate channel 1
+	HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
+	// Stop Counter
+	htim1.Instance->CR1 &= ~TIM_CR1_CEN;
+	// Preload good values
+	// htim1.Instance->PSC = 1000;
+	// Preload values
+	htim1.Instance->ARR = DCC_ZERO_ARR;
+	htim1.Instance->CCR1 = DCC_ZERO_CCR;
+	htim1.Instance->CCR2 = DCC_ZERO_CCR;
+	// Trigger update (preload loaded)
+	htim1.Instance->EGR &= TIM_EGR_UG;
+	htim1.Instance->EGR &= TIM_EGR_UG;
+	// Clear all Interrupts
+	htim1.Instance->SR = 0ul;
+	// Enable conmutation Interrupt ONLY
+	htim1.Instance->DIER = TIM_DIER_CC1IE;
+	// Enable timer
+	htim1.Instance->CR1 |= TIM_CR1_CEN;
 	printf("Entering loop for DCC Pump. %s\n", "OK");
 	/* Infinite loop */
-	for(;;)
-	{
-		if ((DCC_PACKET_PREAMBLE == pump->status) && (0 == pump->bit)) {
-			printf("\n\n%s\n", "PACKET:");
-		}
-		//printf("STATUS: %u, NBIT: %u, NDATA: %u, ", pump->status, pump->bit, pump->data_count);
-		bit = (DCC_ONE_BIT_FREQ == DCC_Packet_Pump_next(pump));
-		printf("%u", bit);
+	for (;;) {
+		//		if ((DCC_PACKET_PREAMBLE == pump->status) && (0 == pump->bit)) {
+		//			printf("\n\n%s\n", "PACKET:");
+		//		}
+		//		//printf("STATUS: %u, NBIT: %u, NDATA: %u, ", pump->status, pump->bit, pump->data_count);
+		//		bit = (DCC_ONE_BIT_FREQ == DCC_Packet_Pump_next(pump));
+		//		printf("%u", bit);
 		//printf("%u", (DCC_ONE_BIT_FREQ == bit));
 		HAL_GPIO_TogglePin(LD_Green_GPIO_Port, LD_Green_Pin);
 		osDelay(125);
 	}
-  /* USER CODE END StartDccTask */
+	/* USER CODE END StartDccTask */
 }
 
 /* Private application code --------------------------------------------------*/
 /* USER CODE BEGIN Application */
-
+void HAL_TIM_PWM_PulseFinishedCallback(TIM_HandleTypeDef *htim) {
+	if (htim->Instance == TIM1) {
+		if (htim->Channel == HAL_TIM_ACTIVE_CHANNEL_1) {
+			tim1_last_cnt = htim->Instance->CNT;
+			tim1_last_arr = htim->Instance->ARR;
+			if (DCC_Packet_Pump_next(pump) == DCC_ZERO) {
+				htim->Instance->ARR = DCC_ZERO_ARR;
+				htim->Instance->CCR1 = DCC_ZERO_CCR;
+				htim->Instance->CCR2 = DCC_ZERO_CCR;
+			} else {
+				htim->Instance->ARR = DCC_ONE_ARR;
+				htim->Instance->CCR1 = DCC_ONE_CCR;
+				htim->Instance->CCR2 = DCC_ONE_CCR;
+			}
+		}
+	}
+}
 /* USER CODE END Application */
 
 /************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/

@@ -16,17 +16,6 @@
 //const DCC_Packet DCC_Packet_Stop  = {1,  0, 0x00, {0x40, 0x00, 0x00, 0x00, 0x00}, 0x00};
 
 
-void inc_index(int *index) {
-  *index += 1;
-  *index %= MAX_NODES;
-}
-
-void dec_index(int *index) {
-  *index -= 1;
-  *index %= MAX_NODES;
-}
-
-
 void DCC_Packet_adjust_crc(DCC_Packet *p) {
   p->crc = p->address;
   for (int i = 0; i < p->data_len; i++) {
@@ -34,12 +23,14 @@ void DCC_Packet_adjust_crc(DCC_Packet *p) {
   }
 }
 
-void DCC_Packet_set_address(DCC_Packet *p, unsigned char addr) {
+void DCC_Packet_set_address(DCC_Packet *p, uint16_t addr) {
   p->address = addr;
+  if(p->address > 127) {
+  }
   DCC_Packet_adjust_crc(p);
 }
 
-void DCC_Packet_set_speed(DCC_Packet *p, unsigned char speed, unsigned char dir) {
+void DCC_Packet_set_speed(DCC_Packet *p, uint8_t speed, uint8_t dir) {
   p->data_len = 2;
   p->data[0] = DCC_PACKET_SPEED_128;
   unsigned char adjust_speed = (speed > 127) ? 127 : speed;
@@ -96,16 +87,16 @@ osStatus DCC_Packet_Pump_init(DCC_Packet_Pump *pump, osMessageQId mq_id) {
   if(NULL != pump->packet) {
 	  ost = osOK;
 	  *pump->packet = DCC_PACKET_IDLE;
-	  printf("\nFirst packet OK: %u\n", ost);
+	  //printf("\nFirst packet OK: %u\n", ost);
   }
-  if(ost != osOK)
-	  printf("\nERROR: No memory: %u\n", ost);
+//  if(ost != osOK)
+//	  printf("\nERROR: No memory: %u\n", ost);
   return ost;
 }
 
-unsigned int DCC_Packet_Pump_next(DCC_Packet_Pump *pump) {
+unsigned long DCC_Packet_Pump_next(DCC_Packet_Pump *pump) {
   unsigned int emit;
-  osStatus status;
+  osStatus_t status;
   osEvent event;
   switch (pump->status) {
     case DCC_PACKET_PREAMBLE:
@@ -131,7 +122,7 @@ unsigned int DCC_Packet_Pump_next(DCC_Packet_Pump *pump) {
       }
       break;
     case DCC_PACKET_DATA_START:
-      emit = DCC_ZERO_BIT_FREQ;
+      emit = DCC_ZERO;
       pump->bit = 0;
       pump->status = DCC_PACKET_DATA;
       break;
@@ -149,7 +140,7 @@ unsigned int DCC_Packet_Pump_next(DCC_Packet_Pump *pump) {
       }
       break;
     case DCC_PACKET_CRC_START:
-      emit = DCC_ZERO_BIT_FREQ;
+      emit = DCC_ZERO;
       pump->status = DCC_PACKET_CRC;
       pump->bit = 0;
       break;
@@ -162,7 +153,7 @@ unsigned int DCC_Packet_Pump_next(DCC_Packet_Pump *pump) {
       }
       break;
     case DCC_PACKET_END:
-      emit = DCC_ONE_BIT_FREQ;
+      emit = DCC_ONE;
       pump->status = DCC_PACKET_PREAMBLE;
       pump->bit = 0;
       pump->data_count = 0;
@@ -177,20 +168,16 @@ unsigned int DCC_Packet_Pump_next(DCC_Packet_Pump *pump) {
       }
       else {
     	printf("%s\n", "Returning packet to queue");
-        status = osMessagePut(pump->queue, (uint32_t) pump->packet, 0U);
+        status = osMessageQueuePut(pump->queue, (void *) pump->packet, 0U, 0U);
         if(status != osOK)
       	  DCC_ERROR(status, "Can't put on queue.");
       }
       printf("%s\n","Getting new packet.");
-      event = osMessageGet(pump->queue, 0U);
-      if(event.status != osEventMessage) {
-    	  if (osEventTimeout == event.status)
-    		  DCC_ERROR(status, "Nothing to get in queue.");
+      status = osMessageQueueGet(pump->queue, (void *) pump->packet, 0U, 0U);
+      if(event.status != osOK) {
+    	  if (osErrorResource == status)
+    		  DCC_ERROR(status, "Nothing to get from queue.");
     	  printf("%s\n", "No message in queue");
-      }
-      else {
-    	  printf("%s\n","Updating packet in queue");
-    	  pump->packet = event.value.p;
       }
       break;
   }
