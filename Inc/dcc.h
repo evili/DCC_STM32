@@ -20,7 +20,7 @@ extern "C" {
 // == 1/(2*58)*1000000
 #define DCC_ONE_BIT_FREQ  (8621u)
 
-#define DCC_PACKET_PREAMBLE_LEN             (14)
+#define DCC_PACKET_PREAMBLE_LEN             (16)
 #define DCC_PACKET_ADDRESS_START_BIT_LEN     (1)
 #define DCC_PACKET_ADDRES_LEN                (8)
 #define DCC_PACKET_DATA_START_BIT_LEN        (1)
@@ -29,24 +29,24 @@ extern "C" {
 #define DCC_PACKET_CRC_LEN                   (8)
 #define DCC_PACKET_END_BIT_LEN               (1)
 
+#define DCC_ADDRESS_MAX                 (16127u) // == 0x3EFF == 0011 1110 1111 1111, the first (high) packet address byte
+                                                 // begins with '11' and can not be all '1' because this will clash with broadcast.
+#define DCC_SHORT_ADDRESS_MAX             (127u)
+
 /* Default repeat for DCC Packets */
 #define DCC_PACKET_DEFAULT_REPEAT            (5)
 /* DCC Packet count permanent */
 #define DCC_PACKET_PERMANENT                (-1)
+#define DCC_PACKET_SPEED_128              (0x3F)
+#define DCC_PACKET_SPEED_128_DIR_BIT         (7)
 
-#define DCC_PACKET_SPEED_128         (0x3F)
-#define DCC_PACKET_SPEED_128_DIR_BIT    (7)
+#define DCC_PACKET_SPEED_28_START         0x40u // == 0b01000000
+#define DCC_PACKET_SPEED_28_DIRECTION_BIT 0x20u // == 0b00100000
+#define DCC_PACKET_SPEED_28_FIRST_BIT     0x10u // == 0b00010000
+  
 
-#define DCC_MAX_STREAM_BITS  77 // = 14+1+(8+1)+(8+1)*5+8+1 =13+63  = 78
-#define DCC_MAX_STREAM_BYTES 10 // = 78/8+1
-
-#define MAX_NODES  120
-#define FINAL_NODE 119 // MAX_NODES-1)
-
-#define QUEUE_OK             (0)
-#define QUEUE_ERR_FULL      (-1)
-#define QUEUE_ERR_EMPTY     (-2)
-#define QUEUE_ERR_NOT_FOUND (-3)
+#define DCC_MAX_STREAM_BITS  80 // = 16+1+(8+1)+(8+1)*5+8+1 =13+63  = 80
+#define DCC_MAX_STREAM_BYTES 10 // = 80/8
 
 #ifndef NULL
 #define NULL 0
@@ -61,6 +61,8 @@ typedef enum {
   DCC_PACKET_PREAMBLE = 0,
   DCC_PACKET_ADDRESS_START,
   DCC_PACKET_ADDRESS,
+  DCC_PACKET_ADDRESS_LOW_START,
+  DCC_PACKET_ADDRESS_LOW,
   DCC_PACKET_DATA_START,
   DCC_PACKET_DATA,
   DCC_PACKET_CRC_START,
@@ -82,25 +84,26 @@ typedef struct DCC_Packet {
   uint8_t  crc;
 } DCC_Packet;
 
+/*
 typedef struct DCC_Stream {
   int nbits;
   unsigned char data[DCC_MAX_STREAM_BYTES];
 } DCC_Stream;
+*/
 
 void DCC_Packet_adjust_crc(DCC_Packet *p);
 void DCC_Packet_set_address(DCC_Packet *p, uint16_t addr);
 void DCC_Packet_set_speed(DCC_Packet *p, uint8_t speed, uint8_t direction);
-void DCC_Packet_to_DCC_Stream(DCC_Packet *packet, DCC_Stream *stream);
+// void DCC_Packet_to_DCC_Stream(DCC_Packet *packet, DCC_Stream *stream);
 
 //extern const DCC_Packet DCC_Packet_Idle;
 //extern const DCC_Packet DCC_Packet_Reset;
 //extern const DCC_Packet DCC_Packet_Stop;
-#define DCC_PACKET_IDLE  (DCC_Packet) {.data_len = 1, .count = -1, .address = 0xFF, .data = {0x00, 0x00, 0x00, 0x00, 0x00}, .crc = 0xFF}
-#define DCC_PACKET_RESET {1,  0, 0x00, {0x00, 0x00, 0x00, 0x00, 0x00}, 0x00}
-#define DCC_PACKET_STOP  {1,  0, 0x00, {0x00, 0x00, 0x00, 0x00, 0x00}, 0x00}
+#define DCC_PACKET_IDLE  (DCC_Packet) {.data_len = 1, .count = -1, .address = 0x00FF, .data = {0x00, 0x00, 0x00, 0x00, 0x00}, .crc = 0xFF}
+#define DCC_PACKET_RESET (DCC_Packet) {.data_len = 1, .count =  5, .address = 0x0000, .data = {0x00, 0x00, 0x00, 0x00, 0x00}, .crc = 0x00}
+#define DCC_PACKET_STOP  (DCC_Packet) {.data_len = 1, .count =  5, .address = 0x0000, .data = {0x41, 0x00, 0x00, 0x00, 0x00}, .crc = 0x41}
 
 typedef struct DCC_Packet_Pump {
-    // DCC_Bit next_bit;
     DCC_Packet_State status;
     uint8_t bit;
     uint8_t data_count;

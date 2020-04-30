@@ -25,7 +25,7 @@
 #include "cmsis_os.h"
 
 /* Private includes ----------------------------------------------------------*/
-/* USER CODE BEGIN Includes */
+/* USER CODE BEGIN Includes */     
 #include "tim.h"
 #include "dcc.h"
 #include "printf-stdarg.h"
@@ -56,16 +56,35 @@ volatile uint32_t tim1_last_arr;
 /* USER CODE END Variables */
 /* Definitions for defaultTask */
 osThreadId_t defaultTaskHandle;
-const osThreadAttr_t defaultTask_attributes = { .name = "defaultTask",
-		.priority = (osPriority_t) osPriorityNormal, .stack_size = 256 * 4 };
+const osThreadAttr_t defaultTask_attributes = {
+  .name = "defaultTask",
+  .priority = (osPriority_t) osPriorityNormal,
+  .stack_size = 256 * 4
+};
 /* Definitions for dccTask */
 osThreadId_t dccTaskHandle;
-const osThreadAttr_t dccTask_attributes = { .name = "dccTask", .priority =
-		(osPriority_t) osPriorityHigh, .stack_size = 128 * 4 };
+const osThreadAttr_t dccTask_attributes = {
+  .name = "dccTask",
+  .priority = (osPriority_t) osPriorityHigh,
+  .stack_size = 128 * 4
+};
+/* Definitions for commandTask */
+osThreadId_t commandTaskHandle;
+const osThreadAttr_t commandTask_attributes = {
+  .name = "commandTask",
+  .priority = (osPriority_t) osPriorityLow,
+  .stack_size = 128 * 4
+};
 /* Definitions for dccPacketQueue */
 osMessageQueueId_t dccPacketQueueHandle;
-const osMessageQueueAttr_t dccPacketQueue_attributes = { .name =
-		"dccPacketQueue" };
+const osMessageQueueAttr_t dccPacketQueue_attributes = {
+  .name = "dccPacketQueue"
+};
+/* Definitions for commandQueue */
+osMessageQueueId_t commandQueueHandle;
+const osMessageQueueAttr_t commandQueue_attributes = {
+  .name = "commandQueue"
+};
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN FunctionPrototypes */
@@ -74,6 +93,7 @@ const osMessageQueueAttr_t dccPacketQueue_attributes = { .name =
 
 void StartDefaultTask(void *argument);
 void StartDccTask(void *argument);
+void StartCommandTask(void *argument);
 
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
 
@@ -93,33 +113,35 @@ __weak unsigned long getRunTimeCounterValue(void) {
 /* USER CODE END 1 */
 
 /**
- * @brief  FreeRTOS initialization
- * @param  None
- * @retval None
- */
+  * @brief  FreeRTOS initialization
+  * @param  None
+  * @retval None
+  */
 void MX_FREERTOS_Init(void) {
-	/* USER CODE BEGIN Init */
+  /* USER CODE BEGIN Init */
 
-	/* USER CODE END Init */
+  /* USER CODE END Init */
 
-	/* USER CODE BEGIN RTOS_MUTEX */
+  /* USER CODE BEGIN RTOS_MUTEX */
 	/* add mutexes, ... */
-	/* USER CODE END RTOS_MUTEX */
+  /* USER CODE END RTOS_MUTEX */
 
-	/* USER CODE BEGIN RTOS_SEMAPHORES */
+  /* USER CODE BEGIN RTOS_SEMAPHORES */
 	/* add semaphores, ... */
-	/* USER CODE END RTOS_SEMAPHORES */
+  /* USER CODE END RTOS_SEMAPHORES */
 
-	/* USER CODE BEGIN RTOS_TIMERS */
+  /* USER CODE BEGIN RTOS_TIMERS */
 	/* start timers, add new ones, ... */
-	/* USER CODE END RTOS_TIMERS */
+  /* USER CODE END RTOS_TIMERS */
 
-	/* Create the queue(s) */
-	/* creation of dccPacketQueue */
-	dccPacketQueueHandle = osMessageQueueNew(20, sizeof(DCC_Packet*),
-			&dccPacketQueue_attributes);
+  /* Create the queue(s) */
+  /* creation of dccPacketQueue */
+  dccPacketQueueHandle = osMessageQueueNew (20, sizeof(DCC_Packet *), &dccPacketQueue_attributes);
 
-	/* USER CODE BEGIN RTOS_QUEUES */
+  /* creation of commandQueue */
+  commandQueueHandle = osMessageQueueNew (2, sizeof(char *), &commandQueue_attributes);
+
+  /* USER CODE BEGIN RTOS_QUEUES */
 	/* add queues, ... */
 	// Not Implemented Yet on FreeRTOS version of CMSIS v2
 	/*
@@ -130,20 +152,21 @@ void MX_FREERTOS_Init(void) {
 	 };
 	 */
 
-	/* USER CODE END RTOS_QUEUES */
+  /* USER CODE END RTOS_QUEUES */
 
-	/* Create the thread(s) */
-	/* creation of defaultTask */
-	defaultTaskHandle = osThreadNew(StartDefaultTask, NULL,
-			&defaultTask_attributes);
+  /* Create the thread(s) */
+  /* creation of defaultTask */
+  defaultTaskHandle = osThreadNew(StartDefaultTask, NULL, &defaultTask_attributes);
 
-	/* creation of dccTask */
-	dccTaskHandle = osThreadNew(StartDccTask, (void*) &dccPacketQueueHandle,
-			&dccTask_attributes);
+  /* creation of dccTask */
+  dccTaskHandle = osThreadNew(StartDccTask, (void*) &dccPacketQueueHandle, &dccTask_attributes);
 
-	/* USER CODE BEGIN RTOS_THREADS */
+  /* creation of commandTask */
+  commandTaskHandle = osThreadNew(StartCommandTask, NULL, &commandTask_attributes);
+
+  /* USER CODE BEGIN RTOS_THREADS */
 	/* add threads, ... */
-	/* USER CODE END RTOS_THREADS */
+  /* USER CODE END RTOS_THREADS */
 
 }
 
@@ -154,8 +177,9 @@ void MX_FREERTOS_Init(void) {
  * @retval None
  */
 /* USER CODE END Header_StartDefaultTask */
-void StartDefaultTask(void *argument) {
-	/* USER CODE BEGIN StartDefaultTask */
+void StartDefaultTask(void *argument)
+{
+  /* USER CODE BEGIN StartDefaultTask */
 	// char  pcWriteBuffer[128];
 	// DCC_Packet *current;
 	// DCC_Packet Idle = DCC_PACKET_IDLE;
@@ -165,16 +189,9 @@ void StartDefaultTask(void *argument) {
 	// osMessageQueuePut(dccPAcketQueueHandle, &Loco_3, 0U, osWaitForever);
 	printf("Starting Default Task.\n");
 
-	int j = 0;
-#define NUM_SPEED 5
-	uint8_t speeds[NUM_SPEED] = { 1, 20, 41, 80, 121 };
-	uint32_t tim1_cnt, tim1_arr;
 	/* Infinite loop */
 	for (;;) {
 		osDelay(1000);
-		//printf("Main Task %d\n", j);
-		j++;
-		osDelay(200);
 		HAL_GPIO_WritePin(LED_Red_GPIO_Port, LED_Red_Pin, GPIO_PIN_RESET);
 		//		vTaskList(pcWriteBuffer);
 		//		printf("\n=============== TASK LIST ==============="
@@ -183,45 +200,8 @@ void StartDefaultTask(void *argument) {
 		//				"\n=========================================\n",
 		//				pcWriteBuffer);
 		// Get the last timer counter and print.
-		tim1_cnt = tim1_last_cnt;
-		tim1_arr = tim1_last_arr;
-		// This should be around 50%, no 0%
-		printf("\nLAST CAPTURE COUNTER: %u/%u\n", tim1_cnt, tim1_arr);
-
-		// Inject a packet to the Queue:
-		if ((j % 10) == 0) {
-			DCC_Packet *loco_3 = pvPortMalloc(sizeof(DCC_Packet));
-			if (loco_3 == NULL) {
-				printf("\nMEMORY FULL!\n");
-			} else {
-				*loco_3 = (DCC_Packet ) { .data_len = 3, .count = 2, .address =
-								3 };
-				DCC_Packet_set_address(loco_3, 3);
-				uint8_t speed = speeds[j % NUM_SPEED];
-				DCC_Packet_set_speed(loco_3, speed, 1);
-				//				printf("\nLOCO 3 PACKET: {%x, %x, {%x}, %x : %d}\n",
-				//						loco_3->data_len,
-				//						loco_3->address,
-				//						loco_3->data[0],
-				//						loco_3->crc,
-				//						loco_3->count
-				//				);
-				osStatus status = osMessageQueuePut(dccPacketQueueHandle,
-						(void*) loco_3, 0L, 100L);
-				if (status == osOK) {
-					//					printf("\nPACKET SEND FOR LOCO 3\n");
-					HAL_GPIO_TogglePin(LED_Blue_GPIO_Port, LED_Blue_Pin);
-				} else if ((status == osErrorResource)
-						|| (status == osErrorTimeoutResource)) {
-					printf("\nQUEUE FULL!\n");
-					HAL_GPIO_WritePin(LED_Red_GPIO_Port, LED_Red_Pin,
-							GPIO_PIN_SET);
-					vPortFree(loco_3);
-				}
-			}
-		}
 	}
-	/* USER CODE END StartDefaultTask */
+  /* USER CODE END StartDefaultTask */
 }
 
 /* USER CODE BEGIN Header_StartDccTask */
@@ -231,8 +211,9 @@ void StartDefaultTask(void *argument) {
  * @retval None
  */
 /* USER CODE END Header_StartDccTask */
-void StartDccTask(void *argument) {
-	/* USER CODE BEGIN StartDccTask */
+void StartDccTask(void *argument)
+{
+  /* USER CODE BEGIN StartDccTask */
 	// unsigned int bit;
 	osMessageQId dccQueue = *((osMessageQueueId_t*) argument);
 	if (NULL == dccQueue) {
@@ -294,7 +275,25 @@ void StartDccTask(void *argument) {
 		HAL_GPIO_TogglePin(LD_Green_GPIO_Port, LD_Green_Pin);
 		osDelay(125);
 	}
-	/* USER CODE END StartDccTask */
+  /* USER CODE END StartDccTask */
+}
+
+/* USER CODE BEGIN Header_StartCommandTask */
+/**
+* @brief Function implementing the commandTask thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_StartCommandTask */
+void StartCommandTask(void *argument)
+{
+  /* USER CODE BEGIN StartCommandTask */
+  /* Infinite loop */
+  for(;;)
+  {
+    osDelay(1);
+  }
+  /* USER CODE END StartCommandTask */
 }
 
 /* Private application code --------------------------------------------------*/

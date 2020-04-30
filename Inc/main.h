@@ -72,8 +72,10 @@ void assert_failed(uint8_t* file, uint32_t line);
 #define DCC_QUEUE_LEN 20
 #define USER_Btn_Pin GPIO_PIN_13
 #define USER_Btn_GPIO_Port GPIOC
-#define LD_Green_Pin GPIO_PIN_0
-#define LD_Green_GPIO_Port GPIOB
+#define LED_Green_Pin GPIO_PIN_0
+#define LED_Green_GPIO_Port GPIOB
+#define ENABLE_A_Pin GPIO_PIN_15
+#define ENABLE_A_GPIO_Port GPIOF
 #define DCC_K_Pin GPIO_PIN_9
 #define DCC_K_GPIO_Port GPIOE
 #define DCC_L_Pin GPIO_PIN_11
