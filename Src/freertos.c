@@ -142,7 +142,7 @@ void MX_FREERTOS_Init(void) {
   dccPacketQueueHandle = osMessageQueueNew (20, sizeof(DCC_Packet *), &dccPacketQueue_attributes);
 
   /* creation of commandQueue */
-  commandQueueHandle = osMessageQueueNew (2, sizeof(char *), &commandQueue_attributes);
+  commandQueueHandle = osMessageQueueNew (72, sizeof(char *), &commandQueue_attributes);
 
   /* USER CODE BEGIN RTOS_QUEUES */
 	/* add queues, ... */
