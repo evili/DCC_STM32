@@ -27,18 +27,17 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */     
 #include "tim.h"
+#include "usart.h"
 #include "dcc.h"
 #include "printf-stdarg.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -50,8 +49,12 @@
 /* USER CODE BEGIN Variables */
 
 DCC_Packet_Pump *pump;
-volatile uint32_t tim1_last_cnt;
-volatile uint32_t tim1_last_arr;
+
+volatile CMD_Status cmd_status = CMD_STATUS_STOP;
+uint8_t cmdInputBuf[COMMAND_LINE_LEN+1];
+uint8_t cmdOutputBuf[COMMAND_LINE_LEN+1];
+//volatile uint32_t tim1_last_cnt;
+//volatile uint32_t tim1_last_arr;
 
 /* USER CODE END Variables */
 /* Definitions for defaultTask */
@@ -272,7 +275,7 @@ void StartDccTask(void *argument)
 		//		bit = (DCC_ONE_BIT_FREQ == DCC_Packet_Pump_next(pump));
 		//		printf("%u", bit);
 		//printf("%u", (DCC_ONE_BIT_FREQ == bit));
-		HAL_GPIO_TogglePin(LD_Green_GPIO_Port, LD_Green_Pin);
+		HAL_GPIO_TogglePin(LED_Green_GPIO_Port, LED_Green_Pin);
 		osDelay(125);
 	}
   /* USER CODE END StartDccTask */
@@ -288,10 +291,45 @@ void StartDccTask(void *argument)
 void StartCommandTask(void *argument)
 {
   /* USER CODE BEGIN StartCommandTask */
+  uint32_t flags;
+  int i;
+  cmdInputBuf[COMMAND_LINE_LEN] = '\0';
+  cmdOutputBuf[COMMAND_LINE_LEN] = '\0';
+  // Disable Tx, and Rx.
+  huart3.Instance->CR1 &= ~USART_CR1_TE;
+  huart3.Instance->CR1 &= ~USART_CR1_RE;
+  huart3.Instance->CR2 |=  USART_CR2_ADD & (COMMAND_END_OF_LINE << USART_CR2_ADD_Pos);
   /* Infinite loop */
   for(;;)
   {
-    osDelay(1);
+	flags = osThreadFlagsWait(COMMAND_FLAGS, osFlagsWaitAny, 1000);
+	switch(flags){
+	case COMMAND_FLAG_TRANSMIT:
+		if (cmd_status==CMD_STATUS_IDLE) {
+			cmd_status = CMD_STATUS_TRANSMIT;
+			for(i=0;
+				i<COMMAND_LINE_LEN && osMessageQueueGet(commandQueueHandle, &cmdOutputBuf[i], 0, 0) == osOK;
+				i++);
+			cmdOutputBuf[i] = 0x0A;
+			HAL_UART_Transmit_DMA(&huart3, cmdOutputBuf, i);
+		}
+		break;
+	case COMMAND_FLAG_RECEIVE:
+		if (cmd_status == CMD_STATUS_IDLE) {
+			cmd_status = CMD_STATUS_RECEIVE;
+			// TODO: Process command in cmdInputBuf
+		}
+		break;
+	case COMMAND_FLAG_STOP:
+		huart3.Instance->CR1 &= ~USART_CR1_TE;
+		huart3.Instance->CR1 &= ~USART_CR1_RE;
+		break;
+	default:
+		if(cmd_status == CMD_STATUS_IDLE)
+			HAL_UART_Receive_DMA(&huart3, cmdInputBuf, COMMAND_LINE_LEN);
+		break;
+
+	}
   }
   /* USER CODE END StartCommandTask */
 }
@@ -301,8 +339,8 @@ void StartCommandTask(void *argument)
 void HAL_TIM_PWM_PulseFinishedCallback(TIM_HandleTypeDef *htim) {
 	if (htim->Instance == TIM1) {
 		if (htim->Channel == HAL_TIM_ACTIVE_CHANNEL_1) {
-			tim1_last_cnt = htim->Instance->CNT;
-			tim1_last_arr = htim->Instance->ARR;
+			//tim1_last_cnt = htim->Instance->CNT;
+			//tim1_last_arr = htim->Instance->ARR;
 			if (DCC_Packet_Pump_next(pump) == DCC_ZERO) {
 				htim->Instance->ARR = DCC_ZERO_ARR;
 				htim->Instance->CCR1 = DCC_ZERO_CCR;
@@ -313,6 +351,24 @@ void HAL_TIM_PWM_PulseFinishedCallback(TIM_HandleTypeDef *htim) {
 				htim->Instance->CCR2 = DCC_ONE_CCR;
 			}
 		}
+	}
+}
+
+void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart){
+	if(huart->Instance == USART3) {
+		osThreadFlagsSet(commandTaskHandle, COMMAND_FLAG_IDLE);
+	}
+}
+
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){
+	if(huart->Instance == USART3) {
+		osThreadFlagsSet(commandTaskHandle, COMMAND_FLAG_IDLE);
+	}
+}
+
+void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart) {
+	if(huart->Instance == USART3) {
+		osThreadFlagsSet(commandTaskHandle, COMMAND_FLAG_STOP);
 	}
 }
 /* USER CODE END Application */

@@ -31,12 +31,19 @@
 
 #define putchar(c) outbyte(c)
 
+extern osMessageQueueId_t commandQueueHandle;
+extern osThreadId_t commandTaskHandle;
+
+
 int outbyte(int ch)
 {
  /* Place your implementation of fputc here */
  /* e.g. write a character to the USART2 and Loop until the end of transmission */
- HAL_UART_Transmit(&huart3, (uint8_t *)&ch, 1, 10);
-
+ // Put char on queue.
+ osStatus status = osMessageQueuePut(commandQueueHandle, &ch, 0, 0);
+ if(status == osErrorResource) {
+	 osThreadFlagsSet(commandTaskHandle, COMMAND_FLAG_TRANSMIT);
+ }
  return ch;
 }
 
