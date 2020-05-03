@@ -29,7 +29,7 @@
 #include "tim.h"
 #include "usart.h"
 #include "dcc.h"
-#include "printf-stdarg.h"
+// #include "printf-stdarg.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -50,9 +50,6 @@
 
 DCC_Packet_Pump *pump;
 
-volatile CMD_Status cmd_status = CMD_STATUS_STOP;
-uint8_t cmdInputBuf[COMMAND_LINE_LEN+1];
-uint8_t cmdOutputBuf[COMMAND_LINE_LEN+1];
 //volatile uint32_t tim1_last_cnt;
 //volatile uint32_t tim1_last_arr;
 
@@ -190,7 +187,7 @@ void StartDefaultTask(void *argument)
 	// DCC_Packet_set_speed(&Loco_3, 55, 1);
 	// osMessageQueuePut(dccPAcketQueueHandle, &Idle, 0U, osWaitForever);
 	// osMessageQueuePut(dccPAcketQueueHandle, &Loco_3, 0U, osWaitForever);
-	printf("Starting Default Task.\n");
+	//printf("Starting Default Task.\n");
 
 	/* Infinite loop */
 	for (;;) {
@@ -220,27 +217,27 @@ void StartDccTask(void *argument)
 	// unsigned int bit;
 	osMessageQId dccQueue = *((osMessageQueueId_t*) argument);
 	if (NULL == dccQueue) {
-		printf("\nBad Parameter for Queue: %u\n", (uint32_t) dccQueue);
+		// printf("\nBad Parameter for Queue: %u\n", (uint32_t) dccQueue);
 		osDelay(1000);
 		osThreadTerminate(osThreadGetId());
 	}
 
-	printf("\nAllocating DCC Pump: %s\n", "OK");
+	// printf("\nAllocating DCC Pump: %s\n", "OK");
 	pump = pvPortMalloc(sizeof(DCC_Packet_Pump));
 	if (NULL == pump) {
-		printf("\nDCC Pump allocation: %s\n", "FAILED");
+		// printf("\nDCC Pump allocation: %s\n", "FAILED");
 		osDelay(1000);
 		osThreadTerminate(osThreadGetId());
 	}
-	printf("\nInitializing DCC Pump. %s\n", "OK");
+	// printf("\nInitializing DCC Pump. %s\n", "OK");
 
 	DCC_Packet_Pump_init(pump, dccQueue);
 
-	printf("\nIDLE PACKET: {%u, %u, {%u}, %u : %d}\n", pump->packet->data_len,
-			pump->packet->address, pump->packet->data[0], pump->packet->crc,
-			pump->packet->count);
+//	printf("\nIDLE PACKET: {%u, %u, {%u}, %u : %d}\n", pump->packet->data_len,
+//			pump->packet->address, pump->packet->data[0], pump->packet->crc,
+//			pump->packet->count);
 	// Freeze TIM1 on debug
-	printf("\nPreparing TIMER%d for DCC.\n", 1);
+	// printf("\nPreparing TIMER%d for DCC.\n", 1);
 	// Disable timer on debug
 	__HAL_DBGMCU_FREEZE_TIM1();
 	__HAL_DBGMCU_FREEZE_TIM7();
@@ -265,7 +262,7 @@ void StartDccTask(void *argument)
 	htim1.Instance->DIER = TIM_DIER_CC1IE;
 	// Enable timer
 	htim1.Instance->CR1 |= TIM_CR1_CEN;
-	printf("Entering loop for DCC Pump. %s\n", "OK");
+	// printf("Entering loop for DCC Pump. %s\n", "OK");
 	/* Infinite loop */
 	for (;;) {
 		//		if ((DCC_PACKET_PREAMBLE == pump->status) && (0 == pump->bit)) {
@@ -291,46 +288,8 @@ void StartDccTask(void *argument)
 void StartCommandTask(void *argument)
 {
   /* USER CODE BEGIN StartCommandTask */
-  uint32_t flags;
-  int i;
-  cmdInputBuf[COMMAND_LINE_LEN] = '\0';
-  cmdOutputBuf[COMMAND_LINE_LEN] = '\0';
-  // Disable Tx, and Rx.
-  huart3.Instance->CR1 &= ~USART_CR1_TE;
-  huart3.Instance->CR1 &= ~USART_CR1_RE;
-  huart3.Instance->CR2 |=  USART_CR2_ADD & (COMMAND_END_OF_LINE << USART_CR2_ADD_Pos);
-  /* Infinite loop */
-  for(;;)
-  {
-	flags = osThreadFlagsWait(COMMAND_FLAGS, osFlagsWaitAny, 1000);
-	switch(flags){
-	case COMMAND_FLAG_TRANSMIT:
-		if (cmd_status==CMD_STATUS_IDLE) {
-			cmd_status = CMD_STATUS_TRANSMIT;
-			for(i=0;
-				i<COMMAND_LINE_LEN && osMessageQueueGet(commandQueueHandle, &cmdOutputBuf[i], 0, 0) == osOK;
-				i++);
-			cmdOutputBuf[i] = 0x0A;
-			HAL_UART_Transmit_DMA(&huart3, cmdOutputBuf, i);
-		}
-		break;
-	case COMMAND_FLAG_RECEIVE:
-		if (cmd_status == CMD_STATUS_IDLE) {
-			cmd_status = CMD_STATUS_RECEIVE;
-			// TODO: Process command in cmdInputBuf
-		}
-		break;
-	case COMMAND_FLAG_STOP:
-		huart3.Instance->CR1 &= ~USART_CR1_TE;
-		huart3.Instance->CR1 &= ~USART_CR1_RE;
-		break;
-	default:
-		if(cmd_status == CMD_STATUS_IDLE)
-			HAL_UART_Receive_DMA(&huart3, cmdInputBuf, COMMAND_LINE_LEN);
-		break;
 
-	}
-  }
+	for(;;);
   /* USER CODE END StartCommandTask */
 }
 
@@ -356,19 +315,19 @@ void HAL_TIM_PWM_PulseFinishedCallback(TIM_HandleTypeDef *htim) {
 
 void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart){
 	if(huart->Instance == USART3) {
-		osThreadFlagsSet(commandTaskHandle, COMMAND_FLAG_IDLE);
+		//osThreadFlagsSet(commandTaskHandle, COMMAND_FLAG_IDLE);
 	}
 }
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){
 	if(huart->Instance == USART3) {
-		osThreadFlagsSet(commandTaskHandle, COMMAND_FLAG_IDLE);
+		//osThreadFlagsSet(commandTaskHandle, COMMAND_FLAG_IDLE);
 	}
 }
 
 void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart) {
 	if(huart->Instance == USART3) {
-		osThreadFlagsSet(commandTaskHandle, COMMAND_FLAG_STOP);
+		//osThreadFlagsSet(commandTaskHandle, COMMAND_FLAG_STOP);
 	}
 }
 /* USER CODE END Application */

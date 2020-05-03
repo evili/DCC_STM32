@@ -1,14 +1,14 @@
 #include "dcc.h"
 #include "bits.h"
 #include "cmsis_os.h"
-#include "printf-stdarg.h"
+// #include "printf-stdarg.h"
 
 #ifndef NULL
 #define NULL 0
 #endif
 
-#define DCC_ERROR(n, s) printf("\nE: %s: %u\n", (s), (n));
-
+// #define DCC_ERROR(n, s) printf("\nE: %s: %u\n", (s), (n));
+#define DCC_ERROR(n, s) NULL
 //const DCC_Packet DCC_Packet_Idle  = {1, -1, 0xFF, {0x00, 0x00, 0x00, 0x00, 0x00}, 0xFF};
 // TEST PATTERN of alternin 1 and 0 in adress, data and crc
 // const DCC_Packet DCC_Packet_Idle  = {1, -1, 0x50, {0x05, 0x00, 0x00, 0x00, 0x00}, 0x55};
@@ -204,21 +204,21 @@ unsigned long DCC_Packet_Pump_next(DCC_Packet_Pump *pump) {
       }
       // Grab next packet.
       if (pump->packet->count == 0) {
-    	printf("%s\n", "Count is zero. Freeing");
+    	// printf("%s\n", "Count is zero. Freeing");
     	vPortFree(pump->packet);
       }
       else {
-    	printf("%s\n", "Returning packet to queue");
+    	// printf("%s\n", "Returning packet to queue");
         status = osMessageQueuePut(pump->queue, (void *) pump->packet, 0U, 0U);
         if(status != osOK)
       	  DCC_ERROR(status, "Can't put on queue.");
       }
-      printf("%s\n","Getting new packet.");
+      // printf("%s\n","Getting new packet.");
       status = osMessageQueueGet(pump->queue, (void *) pump->packet, 0U, 0U);
       if(status != osOK) {
     	  if (osErrorResource == status)
     		  DCC_ERROR(status, "Nothing to get from queue.");
-    	  printf("%s\n", "No message in queue");
+    	  // printf("%s\n", "No message in queue");
       }
       break;
   }

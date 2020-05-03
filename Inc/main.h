@@ -37,14 +37,6 @@ extern "C" {
 
 /* Exported types ------------------------------------------------------------*/
 /* USER CODE BEGIN ET */
-
-typedef enum CMD_Status {
-	CMD_STATUS_IDLE= 0x00,
-	CMD_STATUS_TRANSMIT,
-	CMD_STATUS_RECEIVE,
-	CMD_STATUS_STOP
-} CMD_Status;
-
 /* USER CODE END ET */
 
 /* Exported constants --------------------------------------------------------*/
@@ -87,14 +79,8 @@ void assert_failed(uint8_t* file, uint32_t line);
 #define USB_In_GPIO_Port GPIOG
 #define LED_Blue_Pin GPIO_PIN_7
 #define LED_Blue_GPIO_Port GPIOB
+
 /* USER CODE BEGIN Private defines */
-#define COMMAND_LINE_LEN      72
-#define COMMAND_END_OF_LINE 0x0A //  == LF == '\n'
-#define COMMAND_FLAG_IDLE      0x00000000U
-#define	COMMAND_FLAG_TRANSMIT  0x00000001U
-#define	COMMAND_FLAG_RECEIVE   0x00000002U
-#define	COMMAND_FLAG_STOP      0x00000004U
-#define COMMAND_FLAGS         (COMMAND_FLAG_TRANSMIT | COMMAND_FLAG_RECEIVE | COMMAND_FLAG_STOP)
 /* USER CODE END Private defines */
 
 #ifdef __cplusplus
