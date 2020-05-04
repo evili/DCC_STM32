@@ -40,11 +40,15 @@ int outbyte(int ch)
  /* Place your implementation of fputc here */
  /* e.g. write a character to the USART2 and Loop until the end of transmission */
  // Put char on queue.
- osStatus status = osMessageQueuePut(commandQueueHandle, &ch, 0, 0);
- if(status == osErrorResource) {
-	 osThreadFlagsSet(commandTaskHandle, COMMAND_FLAG_TRANSMIT);
- }
- return ch;
+ // osStatus status = osMessageQueuePut(commandQueueHandle, &ch, 0, 0);
+// if(status == osErrorResource) {
+//	 osThreadFlagsSet(commandTaskHandle, COMMAND_FLAG_TRANSMIT);
+// }
+	HAL_StatusTypeDef status = HAL_UART_Transmit_DMA(&huart3, (uint8_t *) & ch ,1);
+	if(status == HAL_OK)
+		return ch;
+	else
+		return -1;
 }
 
 #include <stdarg.h>

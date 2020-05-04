@@ -23,13 +23,15 @@
 #include "task.h"
 #include "main.h"
 #include "cmsis_os.h"
+#include "cli.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */     
 #include "tim.h"
 #include "usart.h"
 #include "dcc.h"
-// #include "printf-stdarg.h"
+#include "string.h"
+#include "printf-stdarg.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -57,37 +59,38 @@ DCC_Packet_Pump *pump;
 /* Definitions for defaultTask */
 osThreadId_t defaultTaskHandle;
 const osThreadAttr_t defaultTask_attributes = {
-  .name = "defaultTask",
-  .priority = (osPriority_t) osPriorityNormal,
-  .stack_size = 256 * 4
+		.name = "defaultTask",
+		.priority = (osPriority_t) osPriorityNormal,
+		.stack_size = 256 * 4
 };
 /* Definitions for dccTask */
 osThreadId_t dccTaskHandle;
 const osThreadAttr_t dccTask_attributes = {
-  .name = "dccTask",
-  .priority = (osPriority_t) osPriorityHigh,
-  .stack_size = 128 * 4
+		.name = "dccTask",
+		.priority = (osPriority_t) osPriorityHigh,
+		.stack_size = 128 * 4
 };
 /* Definitions for commandTask */
 osThreadId_t commandTaskHandle;
 const osThreadAttr_t commandTask_attributes = {
-  .name = "commandTask",
-  .priority = (osPriority_t) osPriorityLow,
-  .stack_size = 128 * 4
+		.name = "commandTask",
+		.priority = (osPriority_t) osPriorityLow,
+		.stack_size = 128 * 4
 };
 /* Definitions for dccPacketQueue */
 osMessageQueueId_t dccPacketQueueHandle;
 const osMessageQueueAttr_t dccPacketQueue_attributes = {
-  .name = "dccPacketQueue"
+		.name = "dccPacketQueue"
 };
 /* Definitions for commandQueue */
 osMessageQueueId_t commandQueueHandle;
 const osMessageQueueAttr_t commandQueue_attributes = {
-  .name = "commandQueue"
+		.name = "commandQueue"
 };
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN FunctionPrototypes */
+void vEnableUART(UART_HandleTypeDef *huart);
 
 /* USER CODE END FunctionPrototypes */
 
@@ -113,35 +116,35 @@ __weak unsigned long getRunTimeCounterValue(void) {
 /* USER CODE END 1 */
 
 /**
-  * @brief  FreeRTOS initialization
-  * @param  None
-  * @retval None
-  */
+ * @brief  FreeRTOS initialization
+ * @param  None
+ * @retval None
+ */
 void MX_FREERTOS_Init(void) {
-  /* USER CODE BEGIN Init */
+	/* USER CODE BEGIN Init */
 
-  /* USER CODE END Init */
+	/* USER CODE END Init */
 
-  /* USER CODE BEGIN RTOS_MUTEX */
+	/* USER CODE BEGIN RTOS_MUTEX */
 	/* add mutexes, ... */
-  /* USER CODE END RTOS_MUTEX */
+	/* USER CODE END RTOS_MUTEX */
 
-  /* USER CODE BEGIN RTOS_SEMAPHORES */
+	/* USER CODE BEGIN RTOS_SEMAPHORES */
 	/* add semaphores, ... */
-  /* USER CODE END RTOS_SEMAPHORES */
+	/* USER CODE END RTOS_SEMAPHORES */
 
-  /* USER CODE BEGIN RTOS_TIMERS */
+	/* USER CODE BEGIN RTOS_TIMERS */
 	/* start timers, add new ones, ... */
-  /* USER CODE END RTOS_TIMERS */
+	/* USER CODE END RTOS_TIMERS */
 
-  /* Create the queue(s) */
-  /* creation of dccPacketQueue */
-  dccPacketQueueHandle = osMessageQueueNew (20, sizeof(DCC_Packet *), &dccPacketQueue_attributes);
+	/* Create the queue(s) */
+	/* creation of dccPacketQueue */
+	dccPacketQueueHandle = osMessageQueueNew (20, sizeof(DCC_Packet *), &dccPacketQueue_attributes);
 
-  /* creation of commandQueue */
-  commandQueueHandle = osMessageQueueNew (72, sizeof(char *), &commandQueue_attributes);
+	/* creation of commandQueue */
+	commandQueueHandle = osMessageQueueNew (72, sizeof(char *), &commandQueue_attributes);
 
-  /* USER CODE BEGIN RTOS_QUEUES */
+	/* USER CODE BEGIN RTOS_QUEUES */
 	/* add queues, ... */
 	// Not Implemented Yet on FreeRTOS version of CMSIS v2
 	/*
@@ -152,21 +155,21 @@ void MX_FREERTOS_Init(void) {
 	 };
 	 */
 
-  /* USER CODE END RTOS_QUEUES */
+	/* USER CODE END RTOS_QUEUES */
 
-  /* Create the thread(s) */
-  /* creation of defaultTask */
-  defaultTaskHandle = osThreadNew(StartDefaultTask, NULL, &defaultTask_attributes);
+	/* Create the thread(s) */
+	/* creation of defaultTask */
+	defaultTaskHandle = osThreadNew(StartDefaultTask, NULL, &defaultTask_attributes);
 
-  /* creation of dccTask */
-  dccTaskHandle = osThreadNew(StartDccTask, (void*) &dccPacketQueueHandle, &dccTask_attributes);
+	/* creation of dccTask */
+	dccTaskHandle = osThreadNew(StartDccTask, (void*) &dccPacketQueueHandle, &dccTask_attributes);
 
-  /* creation of commandTask */
-  commandTaskHandle = osThreadNew(StartCommandTask, NULL, &commandTask_attributes);
+	/* creation of commandTask */
+	commandTaskHandle = osThreadNew(StartCommandTask, NULL, &commandTask_attributes);
 
-  /* USER CODE BEGIN RTOS_THREADS */
+	/* USER CODE BEGIN RTOS_THREADS */
 	/* add threads, ... */
-  /* USER CODE END RTOS_THREADS */
+	/* USER CODE END RTOS_THREADS */
 
 }
 
@@ -179,7 +182,7 @@ void MX_FREERTOS_Init(void) {
 /* USER CODE END Header_StartDefaultTask */
 void StartDefaultTask(void *argument)
 {
-  /* USER CODE BEGIN StartDefaultTask */
+	/* USER CODE BEGIN StartDefaultTask */
 	// char  pcWriteBuffer[128];
 	// DCC_Packet *current;
 	// DCC_Packet Idle = DCC_PACKET_IDLE;
@@ -201,7 +204,7 @@ void StartDefaultTask(void *argument)
 		//				pcWriteBuffer);
 		// Get the last timer counter and print.
 	}
-  /* USER CODE END StartDefaultTask */
+	/* USER CODE END StartDefaultTask */
 }
 
 /* USER CODE BEGIN Header_StartDccTask */
@@ -213,7 +216,7 @@ void StartDefaultTask(void *argument)
 /* USER CODE END Header_StartDccTask */
 void StartDccTask(void *argument)
 {
-  /* USER CODE BEGIN StartDccTask */
+	/* USER CODE BEGIN StartDccTask */
 	// unsigned int bit;
 	osMessageQId dccQueue = *((osMessageQueueId_t*) argument);
 	if (NULL == dccQueue) {
@@ -233,9 +236,9 @@ void StartDccTask(void *argument)
 
 	DCC_Packet_Pump_init(pump, dccQueue);
 
-//	printf("\nIDLE PACKET: {%u, %u, {%u}, %u : %d}\n", pump->packet->data_len,
-//			pump->packet->address, pump->packet->data[0], pump->packet->crc,
-//			pump->packet->count);
+	//	printf("\nIDLE PACKET: {%u, %u, {%u}, %u : %d}\n", pump->packet->data_len,
+	//			pump->packet->address, pump->packet->data[0], pump->packet->crc,
+	//			pump->packet->count);
 	// Freeze TIM1 on debug
 	// printf("\nPreparing TIMER%d for DCC.\n", 1);
 	// Disable timer on debug
@@ -275,26 +278,87 @@ void StartDccTask(void *argument)
 		HAL_GPIO_TogglePin(LED_Green_GPIO_Port, LED_Green_Pin);
 		osDelay(125);
 	}
-  /* USER CODE END StartDccTask */
+	/* USER CODE END StartDccTask */
 }
 
 /* USER CODE BEGIN Header_StartCommandTask */
 /**
-* @brief Function implementing the commandTask thread.
-* @param argument: Not used
-* @retval None
-*/
+ * @brief Function implementing the commandTask thread.
+ * @param argument: Not used
+ * @retval None
+ */
 /* USER CODE END Header_StartCommandTask */
 void StartCommandTask(void *argument)
 {
-  /* USER CODE BEGIN StartCommandTask */
-
-	for(;;);
-  /* USER CODE END StartCommandTask */
+	/* USER CODE BEGIN StartCommandTask */
+	static unsigned char cInputString[ configCOMMAND_INT_MAX_OUTPUT_SIZE ], cOutputString[ configCOMMAND_INT_MAX_OUTPUT_SIZE ];
+	BaseType_t xMoreDataToFollow;
+	uint32_t flags;
+	vRegisterCLICommands();
+	vEnableUART(&huart3);
+	snprintf((char *) cOutputString, configCOMMAND_INT_MAX_OUTPUT_SIZE,
+			"<iDCC++ BASE STATION FOR ARDUINO STM32F7 X-N-IHM04A1 %s / %s>\r\n", __TIME__, __DATE__);
+	HAL_UART_Transmit_DMA(&huart3, cOutputString,
+			strnlen((char *)cOutputString, configCOMMAND_INT_MAX_OUTPUT_SIZE));
+	for(;;) {
+		/* Pass the string to FreeRTOS+CLI. */
+		flags = osThreadFlagsWait(COMMAND_FLAGS, osFlagsWaitAny, 1000);
+		if(flags & osFlagsError) {
+			if(flags == osFlagsErrorTimeout) {
+				continue;
+			}
+			else {
+				//TODO: Error from CLI
+			}
+		}
+		switch(flags) {
+		case COMMAND_FLAG_TRANSMIT_OK:
+			HAL_GPIO_TogglePin(LED_Blue_GPIO_Port, LED_Blue_Pin);
+			HAL_UART_Receive_DMA(&huart3, cInputString, configCOMMAND_INT_MAX_OUTPUT_SIZE);
+			break;
+		case COMMAND_FLAG_RECEIVE_OK:
+			//HAL_GPIO_TogglePin(LED_Red_GPIO_Port, LED_Red_Pin);
+			xMoreDataToFollow = FreeRTOS_CLIProcessCommand( cInputString, cOutputString,
+					configCOMMAND_INT_MAX_OUTPUT_SIZE );
+			if(xMoreDataToFollow == pdFALSE) {
+				// TODO: Error message.
+				snprintf((char *) cOutputString, configCOMMAND_INT_MAX_OUTPUT_SIZE, "ERROR: %s", cInputString);
+			}
+			HAL_UART_Transmit_DMA(&huart3, cOutputString, strnlen((char *) cOutputString,
+					configCOMMAND_INT_MAX_OUTPUT_SIZE));
+			break;
+		case COMMAND_FLAG_ERROR:
+			osThreadExit();
+			break;
+		}
+	}
+	/* USER CODE END StartCommandTask */
 }
 
 /* Private application code --------------------------------------------------*/
 /* USER CODE BEGIN Application */
+
+void vEnableUART(UART_HandleTypeDef *huart){
+
+	if(huart->Instance == USART3) {
+		  int32_t state = osKernelLock();
+		  // Disable USART.
+		  huart->Instance->CR1 &= ~USART_CR1_UE;
+		  // huart->Instance->CR1 &= ~USART_CR1_TE;
+		  // huart->Instance->CR1 &= ~USART_CR1_RE;
+		  // Set end-of-line detection
+		  huart->Instance->CR2 |= (USART_CR2_ADD & (COMMAND_END_OF_LINE << USART_CR2_ADD_Pos)) | USART_CR2_ADDM7;
+		  // Clear All IF Flags
+		  huart->Instance->ICR |= USART_ICR_CLEAR_ALL;
+		  // Enable CMF Interrupt
+		  huart->Instance->CR1 |= USART_CR1_CMIE;
+		  // Reenable USART
+		  huart->Instance->CR1 |= USART_CR1_UE;
+		  osKernelRestoreLock(state);
+	}
+}
+
+
 void HAL_TIM_PWM_PulseFinishedCallback(TIM_HandleTypeDef *htim) {
 	if (htim->Instance == TIM1) {
 		if (htim->Channel == HAL_TIM_ACTIVE_CHANNEL_1) {
@@ -315,19 +379,19 @@ void HAL_TIM_PWM_PulseFinishedCallback(TIM_HandleTypeDef *htim) {
 
 void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart){
 	if(huart->Instance == USART3) {
-		//osThreadFlagsSet(commandTaskHandle, COMMAND_FLAG_IDLE);
+		osThreadFlagsSet(commandTaskHandle, COMMAND_FLAG_TRANSMIT_OK);
 	}
 }
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){
 	if(huart->Instance == USART3) {
-		//osThreadFlagsSet(commandTaskHandle, COMMAND_FLAG_IDLE);
+		osThreadFlagsSet(commandTaskHandle, COMMAND_FLAG_RECEIVE_OK);
 	}
 }
 
 void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart) {
 	if(huart->Instance == USART3) {
-		//osThreadFlagsSet(commandTaskHandle, COMMAND_FLAG_STOP);
+		osThreadFlagsSet(commandTaskHandle, COMMAND_FLAG_ERROR);
 	}
 }
 /* USER CODE END Application */

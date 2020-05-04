@@ -81,6 +81,28 @@ void assert_failed(uint8_t* file, uint32_t line);
 #define LED_Blue_GPIO_Port GPIOB
 
 /* USER CODE BEGIN Private defines */
+
+#define VERSION "1.2.1+-STM32F7"
+
+#define USART_ICR_CLEAR_ALL ( USART_ICR_PECF    |\
+                              USART_ICR_FECF    |\
+                              USART_ICR_NCF     |\
+                              USART_ICR_ORECF   |\
+                              USART_ICR_IDLECF  |\
+                              USART_ICR_TCCF    |\
+                              USART_ICR_LBDCF   |\
+                              USART_ICR_CTSCF   |\
+                              USART_ICR_RTOCF   |\
+                              USART_ICR_EOBCF   |\
+                              USART_ICR_CMCF )
+
+#define COMMAND_END_OF_LINE 0x0000000aul
+
+#define COMMAND_FLAG_RECEIVE_OK  0x00000001ul
+#define COMMAND_FLAG_TRANSMIT_OK 0x00000002ul
+#define COMMAND_FLAG_ERROR       0x00000004ul
+#define COMMAND_FLAGS       (COMMAND_FLAG_RECEIVE_OK | COMMAND_FLAG_TRANSMIT_OK | COMMAND_FLAG_ERROR)
+
 /* USER CODE END Private defines */
 
 #ifdef __cplusplus
