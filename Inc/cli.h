@@ -1,10 +1,12 @@
 #ifndef __CLI_H__
 #define __CLI_H__
 
+
+
 #include "cmsis_os.h"
 #include "FreeRTOS_CLI.h"
 
-BaseType_t prvPowerCommand( char *pcWriteBuffer,
+BaseType_t prvPowerOnCommand( char *pcWriteBuffer,
                              size_t xWriteBufferLen,
                              const char *pcCommandString );
 

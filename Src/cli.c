@@ -2,45 +2,155 @@
 #include "printf-stdarg.h"
 
 /**
- * Power Up/Down command
+Command list from DccPlusPlus:
+
+01 <t>: sets the throttle for a mobile engine decoder using 128-step speeds
+02 <f>: controls mobile engine decoder functions F0-F28
+03 <a>: controls stationary accessory decoders
+04 <T>: controls turnouts connected to stationary accessory decoders
+05 <w>: writes a configuration variable byte to an engine decoder on the main ops track
+06 <b>: sets/clear a configuration variable bit in an engine decoder on the main operations track
+07 <W>: writes a configuration variable byte to an engine decoder on the programming track
+08 <B>: sets/clear a configuration variable bit in an engine decoder on the programming track
+09 <R>: reads a configuration variable byte from an engine decoder on the programming track
+10 <1>: turns on track power
+11 <0>: turns off track power
+12 <c>: reads current draw from main operations track
+13 <s>: returns status messages, including power state, turnout states, and sketch version
  */
-BaseType_t prvPowerCommand( char *pcWriteBuffer,
+
+BaseType_t dummyCommand(char *pcWriteBuffer,
+                        size_t xWriteBufferLen,
+                        const char *pcCommandString) {
+  snprintf(pcWriteBuffer, xWriteBufferLen, "//TODO: Not implemented: %s\r\n\r\n", pcCommandString);
+  return pdFALSE;
+}
+
+/**
+ * Power On command
+ */  
+BaseType_t prvPowerOnCommand( char *pcWriteBuffer,
                              size_t xWriteBufferLen,
                              const char *pcCommandString )
 {
-	int8_t *pcParameter;
-	BaseType_t xParameterStringLength;
-	pcParameter = FreeRTOS_CLIGetParameter
-	                        (
-	                          /* The command string itself. */
-	                          pcCommandString,
-	                          /* Return the first parameter. */
-	                          1,
-	                          /* Store the parameter string length. */
-	                          &xParameterStringLength
-	                        );
-	pcParameter[ xParameterStringLength ] = 0x00;
-	if(pcParameter[0] == '0')  {
-		// OUTPUT DISABLE ON MAIN TRACK and PROG TRACL
-
-	}
-	else {
-		// OUTPUT ENABLE ON MAIN TRACK and PROG TRACL
-	}
-
-	snprintf(pcWriteBuffer, xWriteBufferLen, "//TODO: ENABLE MAIN TRACK %s\r\n\r\n", pcParameter);
+	 // TODO: OUTPUT DISABLE ON MAIN TRACK and PROG TRACL
+	snprintf(pcWriteBuffer, xWriteBufferLen, "//TODO: ENABLE MAIN TRACK\r\n\r\n");
 	return pdFALSE;
 }
 
+
 static const CLI_Command_Definition_t xPowerOnCommand =
 {
-		"<p",
-		"<p(0|1)>: Sets power on main track. 0 disable power, 1 enable power.",
-		prvPowerCommand,
-		1
+		"<1",
+		"<1>:\r\n\tTurn ON track power.\r\n",
+		dummyCommand,
+		0
 };
 
+static const CLI_Command_Definition_t xPowerOffCommand =
+{
+		"<0",
+		"<0>:\r\n\tTurn OFF track power.\r\n",
+		dummyCommand,
+		0
+};
+
+static const CLI_Command_Definition_t xThrottleCommand =
+{
+		"<t",
+		"<t M S D>:\r\n\tSets the throttle for a mobile engine decoder using 128-step speeds.\r\n",
+		dummyCommand,
+		0
+};
+static const CLI_Command_Definition_t xFunctionCommand =
+{
+		"<f",
+		"<f M S D>:\r\n\tControls mobile engine decoder functions F0-F28.\r\n",
+		dummyCommand,
+		0
+};
+static const CLI_Command_Definition_t xAccessoryCommand =
+{
+		"<a",
+		"<a D S>:\r\n\tControls turnouts connected to stationary accessory decoders.\r\n",
+		dummyCommand,
+		0
+};
+static const CLI_Command_Definition_t xTurnoutCommand =
+{
+		"<T",
+		"<T D S>:\r\n\tControls turnouts connected to stationary accessory decoders.\r\n",
+		dummyCommand,
+		0
+};
+
+static const CLI_Command_Definition_t xWriteCVMainCommand =
+{
+		"<w",
+		"<w A C V >:\r\n\tWrites a Configuration Variable byte to an engine decoder on the main ops track.\r\n",
+		dummyCommand,
+		0
+};
+
+static const CLI_Command_Definition_t xBitCVMainCommand =
+{
+		"<b",
+		"<b A C B V >:\r\n\tSets/Clears a Configuration Variable bit in an engine decoder on the main operations track.\r\n",
+		dummyCommand,
+		0
+};
+static const CLI_Command_Definition_t xWriteCVProgCommand =
+{
+		"<W",
+		"<W A C V >:\r\n\tWrites a Configuration Variable byte to an engine decoder on the programming track.\r\n",
+		dummyCommand,
+		0
+};
+
+static const CLI_Command_Definition_t xBitCVProgCommand =
+{
+		"<B",
+		"<B A C B V >:\r\n\tSets/Clears a Configuration Variable bit in an engine decoder on the programming track.\r\n",
+		dummyCommand,
+		0
+};
+
+static const CLI_Command_Definition_t xReadCVProgCommand =
+{
+		"<R",
+		"<R A C>:\r\n\tReads a Configuration Variable byte from an engine decoder on the programming track.\r\n",
+		dummyCommand,
+		0
+};
+
+static const CLI_Command_Definition_t xReadCurrentCommand =
+{
+		"<c",
+		"<c>:\r\n\tReads current draw from main operations track.\r\n",
+		dummyCommand,
+		0
+};
+
+static const CLI_Command_Definition_t xStatusCommand =
+{
+		"<s",
+		"<s>:\r\n\tReturns status messages, including power state, turnout states, and sketch version.\r\n",
+		dummyCommand,
+		0
+};
 
 void vRegisterCLICommands() {
-	FreeRTOS_CLIRegisterCommand(&xPowerOnCommand);
+  FreeRTOS_CLIRegisterCommand(&xThrottleCommand);      // 01
+  FreeRTOS_CLIRegisterCommand(&xFunctionCommand);      // 02
+  FreeRTOS_CLIRegisterCommand(&xAccessoryCommand);     // 03
+  FreeRTOS_CLIRegisterCommand(&xTurnoutCommand);       // 04
+  FreeRTOS_CLIRegisterCommand(&xWriteCVMainCommand);   // 05
+  FreeRTOS_CLIRegisterCommand(&xBitCVMainCommand);     // 06
+  FreeRTOS_CLIRegisterCommand(&xWriteCVProgCommand);   // 07
+  FreeRTOS_CLIRegisterCommand(&xBitCVProgCommand);     // 08
+  FreeRTOS_CLIRegisterCommand(&xReadCVProgCommand);    // 09
+  FreeRTOS_CLIRegisterCommand(&xPowerOnCommand);       // 10
+  FreeRTOS_CLIRegisterCommand(&xPowerOffCommand);      // 11
+  FreeRTOS_CLIRegisterCommand(&xReadCurrentCommand);   // 12
+  FreeRTOS_CLIRegisterCommand(&xStatusCommand);        // 13
 }

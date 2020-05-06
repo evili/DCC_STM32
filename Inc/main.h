@@ -56,6 +56,8 @@ void assert_failed(uint8_t* file, uint32_t line);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
+#define DCC_MAIN_TIMER TIM1
+#define DCC_PROG_TIMER TIM8
 #define DCC_ZERO_ARR 43200
 #define DCC_ZERO_CCR 21600
 #define DCC_ONE_ARR 25058

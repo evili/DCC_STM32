@@ -36,6 +36,24 @@
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
+// Struct that holds all infor for prog/main track
+typedef struct DCC_Timer {
+	// Timer used
+	TIM_Handle_TypeDef *htim;
+	// Channel for track 'K' side
+	HAL_TIM_ActiveChannel channel_k;
+	// Channel for track 'L' side
+	HAL_TIM_ActiveChannel channel_l;
+	// MessageQueue
+	osMessageQueueId_t  queueId;
+	// DCC Packet pump
+	DCC_Packet_pump    *pump;
+} DCC_Timer;
+
+#define DCC_TIMER_TOTAL 2;
+
+DCC_Timer DCC_Task_Arguments[DCC_TIMER_TOTAL];
+
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -50,7 +68,7 @@
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN Variables */
 
-DCC_Packet_Pump *pump;
+DCC_Packet_Pump *main_pump, *prog_pump;
 
 //volatile uint32_t tim1_last_cnt;
 //volatile uint32_t tim1_last_arr;
@@ -225,16 +243,16 @@ void StartDccTask(void *argument)
 		osThreadTerminate(osThreadGetId());
 	}
 
-	// printf("\nAllocating DCC Pump: %s\n", "OK");
-	pump = pvPortMalloc(sizeof(DCC_Packet_Pump));
-	if (NULL == pump) {
-		// printf("\nDCC Pump allocation: %s\n", "FAILED");
+	// printf("\nAllocating Main DCC Pump: %s\n", "OK");
+	main_pump = pvPortMalloc(sizeof(DCC_Packet_Pump));
+	if (NULL == main_pump) {
+		// printf("\nDCC Main Pump allocation: %s\n", "FAILED");
 		osDelay(1000);
 		osThreadTerminate(osThreadGetId());
 	}
 	// printf("\nInitializing DCC Pump. %s\n", "OK");
 
-	DCC_Packet_Pump_init(pump, dccQueue);
+	DCC_Packet_Pump_init(main_pump, dccQueue);
 
 	//	printf("\nIDLE PACKET: {%u, %u, {%u}, %u : %d}\n", pump->packet->data_len,
 	//			pump->packet->address, pump->packet->data[0], pump->packet->crc,
@@ -318,14 +336,21 @@ void StartCommandTask(void *argument)
 			break;
 		case COMMAND_FLAG_RECEIVE_OK:
 			//HAL_GPIO_TogglePin(LED_Red_GPIO_Port, LED_Red_Pin);
-			xMoreDataToFollow = FreeRTOS_CLIProcessCommand( cInputString, cOutputString,
-					configCOMMAND_INT_MAX_OUTPUT_SIZE );
-			if(xMoreDataToFollow == pdFALSE) {
-				// TODO: Error message.
-				snprintf((char *) cOutputString, configCOMMAND_INT_MAX_OUTPUT_SIZE, "ERROR: %s", cInputString);
+			xMoreDataToFollow = pdTRUE;
+			while(xMoreDataToFollow) {
+				// Replace the final '>' by an ' ' as we do not care...
+				for(int i=0; (i<configCOMMAND_INT_MAX_OUTPUT_SIZE) && (cInputString[i] != '\0'); i++){
+					cInputString[i] = (cInputString[i] == 0x3E) ? 0x0D :  cInputString[i];
+				}
+				xMoreDataToFollow = FreeRTOS_CLIProcessCommand( cInputString, cOutputString,
+						configCOMMAND_INT_MAX_OUTPUT_SIZE );
+				HAL_UART_Transmit_DMA(&huart3, cOutputString, strnlen((char *) cOutputString,
+						configCOMMAND_INT_MAX_OUTPUT_SIZE));
+				// Wait for transmission complete
+				while(!(huart3.Instance->ISR &= USART_ISR_TC)){
+					osDelay(1);
+				}
 			}
-			HAL_UART_Transmit_DMA(&huart3, cOutputString, strnlen((char *) cOutputString,
-					configCOMMAND_INT_MAX_OUTPUT_SIZE));
 			break;
 		case COMMAND_FLAG_ERROR:
 			osThreadExit();
@@ -360,18 +385,33 @@ void vEnableUART(UART_HandleTypeDef *huart){
 
 
 void HAL_TIM_PWM_PulseFinishedCallback(TIM_HandleTypeDef *htim) {
-	if (htim->Instance == TIM1) {
+	if (htim->Instance == DCC_MAIN_TIMER) {
 		if (htim->Channel == HAL_TIM_ACTIVE_CHANNEL_1) {
 			//tim1_last_cnt = htim->Instance->CNT;
 			//tim1_last_arr = htim->Instance->ARR;
-			if (DCC_Packet_Pump_next(pump) == DCC_ZERO) {
-				htim->Instance->ARR = DCC_ZERO_ARR;
-				htim->Instance->CCR1 = DCC_ZERO_CCR;
-				htim->Instance->CCR2 = DCC_ZERO_CCR;
+			if (DCC_Packet_Pump_next(main_pump) == DCC_ZERO) {
+				DCC_MAIN_TIMER->ARR = DCC_ZERO_ARR;
+				DCC_MAIN_TIMER->CCR1 = DCC_ZERO_CCR;
+				DCC_MAIN_TIMER->CCR2 = DCC_ZERO_CCR;
 			} else {
-				htim->Instance->ARR = DCC_ONE_ARR;
-				htim->Instance->CCR1 = DCC_ONE_CCR;
-				htim->Instance->CCR2 = DCC_ONE_CCR;
+				DCC_MAIN_TIMER->ARR = DCC_ONE_ARR;
+				DCC_MAIN_TIMER->CCR1 = DCC_ONE_CCR;
+				DCC_MAIN_TIMER->CCR2 = DCC_ONE_CCR;
+			}
+		}
+	}
+	else if (htim->Instance == DCC_PROG_TIMER) {
+		if (htim->Channel == HAL_TIM_ACTIVE_CHANNEL_1) {
+			//tim1_last_cnt = htim->Instance->CNT;
+			//tim1_last_arr = htim->Instance->ARR;
+			if (DCC_Packet_Pump_next(prog_pump) == DCC_ZERO) {
+				DCC_PROG_TIMER->ARR = DCC_ZERO_ARR;
+				DCC_PROG_TIMER->CCR1 = DCC_ZERO_CCR;
+				DCC_PROG_TIMER->CCR2 = DCC_ZERO_CCR;
+			} else {
+				DCC_PROG_TIMER->ARR = DCC_ONE_ARR;
+				DCC_PROG_TIMER->CCR1 = DCC_ONE_CCR;
+				DCC_PROG_TIMER->CCR2 = DCC_ONE_CCR;
 			}
 		}
 	}
