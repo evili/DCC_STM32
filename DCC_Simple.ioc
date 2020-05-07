@@ -1,6 +1,6 @@
 #MicroXplorer Configuration settings - do not modify
 PA11.GPIO_Speed=GPIO_SPEED_FREQ_VERY_HIGH
-FREERTOS.Queues01=dccMainPacketQueue,20,DCC_Packet *,0,Dynamic,NULL,NULL;commandQueue,72,char *,0,Dynamic,NULL,NULL;dccProgPacketQueue,2,DCC_Packet *,0,Dynamic,NULL,NULL
+FREERTOS.Queues01=dccMainPacketQueue,21,DCC_Packet *,0,Dynamic,NULL,NULL;commandQueue,72,char *,0,Dynamic,NULL,NULL;dccProgPacketQueue,2,DCC_Packet *,0,Dynamic,NULL,NULL
 PB13.GPIOParameters=GPIO_Speed,GPIO_PuPd,GPIO_Mode
 RCC.USART1Freq_Value=108000000
 RCC.TIM17Freq_Value=72000000
@@ -116,7 +116,7 @@ RCC.PLLQoutputFreq_Value=48000000
 ProjectManager.ProjectFileName=DCC_Simple.ioc
 RCC.ADC12outputFreq_Value=72000000
 TIM1.OCPolarity_2=TIM_OCPOLARITY_LOW
-FREERTOS.Tasks01=defaultTask,24,256,StartDefaultTask,Default,NULL,Dynamic,NULL,NULL;dccTask,40,128,StartDccTask,Default,&dccQueues,Dynamic,NULL,NULL;commandTask,8,128,StartCommandTask,Default,NULL,Dynamic,NULL,NULL
+FREERTOS.Tasks01=defaultTask,24,128,StartDefaultTask,Default,NULL,Dynamic,NULL,NULL;dccTask,40,128,StartDccTask,Default,NULL,Dynamic,NULL,NULL;commandTask,8,256,StartCommandTask,Default,NULL,Dynamic,NULL,NULL
 Mcu.PinsNb=40
 PA1.GPIO_Mode=GPIO_MODE_AF_PP
 PE11.GPIO_Speed=GPIO_SPEED_FREQ_HIGH

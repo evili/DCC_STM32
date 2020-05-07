@@ -1,6 +1,14 @@
+#include <stdlib.h>
 #include "cli.h"
 #include "main.h"
+#include "dcc.h"
 #include "printf-stdarg.h"
+
+extern osMessageQueueId_t dccMainPacketQueueHandle;
+extern osMessageQueueId_t dccProgPacketQueueHandle;
+
+
+DCC_Packet *Register[DCC_QUEUE_LEN];
 
 /**
 Command list from DccPlusPlus:
@@ -37,7 +45,7 @@ BaseType_t prvPowerOnCommand( char *pcWriteBuffer,
 	 // Disable Channels, then disable counter.
 	 HAL_GPIO_WritePin(ENABLE_MAIN_GPIO_Port, ENABLE_MAIN_Pin, GPIO_PIN_SET);
 	 HAL_GPIO_WritePin(ENABLE_PROG_GPIO_Port, ENABLE_PROG_Pin, GPIO_PIN_SET);
- 	snprintf(pcWriteBuffer, xWriteBufferLen, "1\r\n\r\n");
+ 	snprintf(pcWriteBuffer, xWriteBufferLen, "<p1>\r\n\r\n");
 	return pdFALSE;
 }
 
@@ -51,7 +59,7 @@ BaseType_t prvPowerOffCommand( char *pcWriteBuffer,
 	 // Disable Channels, then disable counter.
 	 HAL_GPIO_WritePin(ENABLE_MAIN_GPIO_Port, ENABLE_MAIN_Pin, GPIO_PIN_RESET);
 	 HAL_GPIO_WritePin(ENABLE_PROG_GPIO_Port, ENABLE_PROG_Pin, GPIO_PIN_RESET);
- 	snprintf(pcWriteBuffer, xWriteBufferLen, "0\r\n\r\n");
+ 	snprintf(pcWriteBuffer, xWriteBufferLen, "<p0>\r\n\r\n");
 	return pdFALSE;
 }
 
@@ -66,7 +74,68 @@ BaseType_t prvPowerToggleCommand( char *pcWriteBuffer,
 	HAL_GPIO_TogglePin(ENABLE_MAIN_GPIO_Port, ENABLE_MAIN_Pin);
 	HAL_GPIO_TogglePin(ENABLE_PROG_GPIO_Port, ENABLE_PROG_Pin);
 	uint8_t pin_status = ((ENABLE_MAIN_GPIO_Port->ODR & ENABLE_MAIN_Pin) != 0X00u);
- 	snprintf(pcWriteBuffer, xWriteBufferLen,"%u\r\n\r\n", pin_status);
+ 	snprintf(pcWriteBuffer, xWriteBufferLen,"<p%u>\r\n\r\n", pin_status);
+	return pdFALSE;
+}
+/**
+ * Throttle command
+ */
+BaseType_t prvPowerThrottleCommand( char *pcWriteBuffer,
+		size_t xWriteBufferLen,
+		const char *pcCommandString )
+{
+	DCC_Packet *packet = NULL;
+	// Get parameters
+    unsigned int reg = atol(FreeRTOS_CLIGetParameter(pcCommandString, 1, NULL));
+    unsigned int cab = atol(FreeRTOS_CLIGetParameter(pcCommandString, 2, NULL));
+    unsigned int spd = atol(FreeRTOS_CLIGetParameter(pcCommandString, 3, NULL));
+    unsigned int dir = atol(FreeRTOS_CLIGetParameter(pcCommandString, 4, NULL));
+    // Check ranges
+    reg = (reg > DCC_QUEUE_LEN)   ? (DCC_QUEUE_LEN-1) : reg;
+    cab = (cab > DCC_ADDRESS_MAX) ? DCC_ADDRESS_MAX   : cab;
+    spd = (spd > 126)             ? 126               : spd;
+    dir = (dir)                   ? 1                 : 0;
+    // Register allocated?
+    if (Register[reg] == NULL)
+    {
+    	// Allocate DCC Packet
+    	packet = (DCC_Packet *) pvPortMalloc(sizeof(DCC_Packet));
+    	if(packet != NULL)
+    	{
+    		// Set IDLE packet
+    		*packet = DCC_PACKET_IDLE;
+    	}
+    	else
+    	{
+    		// No memory
+    		snprintf(pcWriteBuffer, xWriteBufferLen, "ERROR: No memory for packet\r\n\r\n");
+    	}
+    }
+
+    // Register[cab] != NULL && packet == NULL ==> Register exists, packet is "old"
+    if(Register[cab])
+    	packet = Register[cab];
+
+    if(packet != NULL) {
+        // Update packet with cab, speed and direction.
+		DCC_Packet_set_address(packet, cab);
+		DCC_Packet_set_speed(packet, spd, dir);
+		// Register[cab] == NULL && packet != NULL ==> No Register, packet is "new"
+		if(Register[cab] == NULL) {
+			osStatus status = osMessageQueuePut(dccMainPacketQueueHandle, (void *) packet, 0U, 200U);
+			if(status != osOK) {
+				vPortFree(packet);
+				snprintf(pcWriteBuffer, xWriteBufferLen, "ERROR: Paquet queue problem %d\r\n\r\n", status);
+				return pdFALSE;
+			}
+			else {
+				Register[cab] = packet;
+			}
+		}
+		// if we are here, everything is ok (i.e. Register[cab] != NULL && packet != NULL
+		snprintf(pcWriteBuffer, xWriteBufferLen, "<T %d %d %d>\r\n\r\n", cab, spd, dir);
+    }
+    // Register[cab] == NULL && packet == NULL ==> No Register and No packet: ignore
 	return pdFALSE;
 }
 
@@ -98,28 +167,28 @@ static const CLI_Command_Definition_t xPowerToggleCommand =
 static const CLI_Command_Definition_t xThrottleCommand =
 {
 		"<t",
-		"<t M S D>:\r\n\tSets the throttle for a mobile engine decoder using 128-step speeds.\r\n",
-		dummyCommand,
-		0
+		"<t REGISTER CAB SPEED DIRECTION>:\r\n\tSets the throttle for a mobile engine decoder using 128-step speeds.\r\n",
+		prvPowerThrottleCommand,
+		4
 };
 static const CLI_Command_Definition_t xFunctionCommand =
 {
 		"<f",
-		"<f M S D>:\r\n\tControls mobile engine decoder functions F0-F28.\r\n",
+		"<f BYTE1 [BYTE2]>:\r\n\tControls mobile engine decoder functions F0-F28.\r\n",
 		dummyCommand,
 		0
 };
 static const CLI_Command_Definition_t xAccessoryCommand =
 {
 		"<a",
-		"<a D S>:\r\n\tControls turnouts connected to stationary accessory decoders.\r\n",
+		"<a ADDRESS SUBADDRESS ACTIVATE>:\r\n\tControls turnouts connected to stationary accessory decoders.\r\n",
 		dummyCommand,
 		0
 };
 static const CLI_Command_Definition_t xTurnoutCommand =
 {
 		"<T",
-		"<T D S>:\r\n\tControls turnouts connected to stationary accessory decoders.\r\n",
+		"<T ID THROW>:\r\n\tControls turnouts connected to stationary accessory decoders.\r\n",
 		dummyCommand,
 		0
 };
@@ -127,7 +196,7 @@ static const CLI_Command_Definition_t xTurnoutCommand =
 static const CLI_Command_Definition_t xWriteCVMainCommand =
 {
 		"<w",
-		"<w A C V >:\r\n\tWrites a Configuration Variable byte to an engine decoder on the main ops track.\r\n",
+		"<w CAB CV VALUE>:\r\n\tWrites a Configuration Variable byte to an engine decoder on the main ops track.\r\n",
 		dummyCommand,
 		0
 };
@@ -135,14 +204,14 @@ static const CLI_Command_Definition_t xWriteCVMainCommand =
 static const CLI_Command_Definition_t xBitCVMainCommand =
 {
 		"<b",
-		"<b A C B V >:\r\n\tSets/Clears a Configuration Variable bit in an engine decoder on the main operations track.\r\n",
+		"<b CAB CV BIT VALUE>:\r\n\tSets/Clears a Configuration Variable bit in an engine decoder on the main operations track.\r\n",
 		dummyCommand,
 		0
 };
 static const CLI_Command_Definition_t xWriteCVProgCommand =
 {
 		"<W",
-		"<W A C V >:\r\n\tWrites a Configuration Variable byte to an engine decoder on the programming track.\r\n",
+		"<W CAB CV VALUE CALLBACKNUM CALLBACKSUB>:\r\n\tWrites a Configuration Variable byte to an engine decoder on the programming track.\r\n",
 		dummyCommand,
 		0
 };
@@ -150,7 +219,7 @@ static const CLI_Command_Definition_t xWriteCVProgCommand =
 static const CLI_Command_Definition_t xBitCVProgCommand =
 {
 		"<B",
-		"<B A C B V >:\r\n\tSets/Clears a Configuration Variable bit in an engine decoder on the programming track.\r\n",
+		"<B CAB CV BIT VALUE CALLBACKNUM CALLBACKSUB>:\r\n\tSets/Clears a Configuration Variable bit in an engine decoder on the programming track.\r\n",
 		dummyCommand,
 		0
 };
@@ -158,7 +227,7 @@ static const CLI_Command_Definition_t xBitCVProgCommand =
 static const CLI_Command_Definition_t xReadCVProgCommand =
 {
 		"<R",
-		"<R A C>:\r\n\tReads a Configuration Variable byte from an engine decoder on the programming track.\r\n",
+		"<R W CV VALUE CALLBACKNUM CALLBACKSUB>:\r\n\tReads a Configuration Variable byte from an engine decoder on the programming track.\r\n",
 		dummyCommand,
 		0
 };

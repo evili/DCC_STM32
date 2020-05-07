@@ -63,7 +63,6 @@
 /* USER CODE BEGIN Variables */
 
 DCC_Packet_Pump *main_pump, *prog_pump;
-osMessageQueueId_t dccQueues[2];
 
 //volatile uint32_t tim1_last_cnt;
 //volatile uint32_t tim1_last_arr;
@@ -74,7 +73,7 @@ osThreadId_t defaultTaskHandle;
 const osThreadAttr_t defaultTask_attributes = {
   .name = "defaultTask",
   .priority = (osPriority_t) osPriorityNormal,
-  .stack_size = 256 * 4
+  .stack_size = 128 * 4
 };
 /* Definitions for dccTask */
 osThreadId_t dccTaskHandle;
@@ -88,7 +87,7 @@ osThreadId_t commandTaskHandle;
 const osThreadAttr_t commandTask_attributes = {
   .name = "commandTask",
   .priority = (osPriority_t) osPriorityLow,
-  .stack_size = 128 * 4
+  .stack_size = 256 * 4
 };
 /* Definitions for dccMainPacketQueue */
 osMessageQueueId_t dccMainPacketQueueHandle;
@@ -157,7 +156,7 @@ void MX_FREERTOS_Init(void) {
 
   /* Create the queue(s) */
   /* creation of dccMainPacketQueue */
-  dccMainPacketQueueHandle = osMessageQueueNew (20, sizeof(DCC_Packet *), &dccMainPacketQueue_attributes);
+  dccMainPacketQueueHandle = osMessageQueueNew (21, sizeof(DCC_Packet *), &dccMainPacketQueue_attributes);
 
   /* creation of commandQueue */
   commandQueueHandle = osMessageQueueNew (72, sizeof(char *), &commandQueue_attributes);
@@ -167,8 +166,6 @@ void MX_FREERTOS_Init(void) {
 
   /* USER CODE BEGIN RTOS_QUEUES */
   /* add queues, ... */
-  dccQueues[0] = dccMainPacketQueueHandle;
-  dccQueues[1] = dccProgPacketQueueHandle;
   /* USER CODE END RTOS_QUEUES */
 
   /* Create the thread(s) */
@@ -176,7 +173,7 @@ void MX_FREERTOS_Init(void) {
   defaultTaskHandle = osThreadNew(StartDefaultTask, NULL, &defaultTask_attributes);
 
   /* creation of dccTask */
-  dccTaskHandle = osThreadNew(StartDccTask, (void*) &dccQueues, &dccTask_attributes);
+  dccTaskHandle = osThreadNew(StartDccTask, NULL, &dccTask_attributes);
 
   /* creation of commandTask */
   commandTaskHandle = osThreadNew(StartCommandTask, NULL, &commandTask_attributes);
@@ -277,7 +274,7 @@ void StartDccTask(void *argument)
 		//		printf("%u", bit);
 		//printf("%u", (DCC_ONE_BIT_FREQ == bit));
 		HAL_GPIO_TogglePin(LED_Green_GPIO_Port, LED_Green_Pin);
-		osDelay(125);
+		osDelay(250);
 	}
   /* USER CODE END StartDccTask */
 }
