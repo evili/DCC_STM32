@@ -111,8 +111,11 @@ int main(void)
   MX_USART3_UART_Init();
   MX_USB_OTG_FS_PCD_Init();
   MX_RNG_Init();
+  MX_TIM4_Init();
   /* USER CODE BEGIN 2 */
-
+  // Disable output
+  HAL_GPIO_WritePin(ENABLE_MAIN_GPIO_Port, ENABLE_MAIN_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(ENABLE_PROG_GPIO_Port, ENABLE_PROG_Pin, GPIO_PIN_RESET);
   /* USER CODE END 2 */
 
   /* Init scheduler */
@@ -182,9 +185,12 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
-  PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_USART3|RCC_PERIPHCLK_CLK48;
+  PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_TIM|RCC_PERIPHCLK_USART3
+                              |RCC_PERIPHCLK_CLK48;
   PeriphClkInitStruct.Usart3ClockSelection = RCC_USART3CLKSOURCE_PCLK1;
   PeriphClkInitStruct.Clk48ClockSelection = RCC_CLK48SOURCE_PLL;
+  PeriphClkInitStruct.TIMPresSelection = RCC_TIMPRES_ACTIVATED;
+
   if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInitStruct) != HAL_OK)
   {
     Error_Handler();

@@ -56,8 +56,6 @@ void assert_failed(uint8_t* file, uint32_t line);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
-#define DCC_MAIN_TIMER TIM1
-#define DCC_PROG_TIMER TIM8
 #define DCC_ZERO_ARR 43200
 #define DCC_ZERO_CCR 21600
 #define DCC_ONE_ARR 25058
@@ -65,26 +63,51 @@ void assert_failed(uint8_t* file, uint32_t line);
 #define DCC_QUEUE_LEN 20
 #define USER_Btn_Pin GPIO_PIN_13
 #define USER_Btn_GPIO_Port GPIOC
+#define ENABLE_PROG_Pin GPIO_PIN_5
+#define ENABLE_PROG_GPIO_Port GPIOF
 #define LED_Green_Pin GPIO_PIN_0
 #define LED_Green_GPIO_Port GPIOB
-#define ENABLE_A_Pin GPIO_PIN_15
-#define ENABLE_A_GPIO_Port GPIOF
-#define DCC_K_Pin GPIO_PIN_9
-#define DCC_K_GPIO_Port GPIOE
-#define DCC_L_Pin GPIO_PIN_11
-#define DCC_L_GPIO_Port GPIOE
+#define ENABLE_MAIN_Pin GPIO_PIN_15
+#define ENABLE_MAIN_GPIO_Port GPIOF
+#define DCC_MAIN_K_Pin GPIO_PIN_9
+#define DCC_MAIN_K_GPIO_Port GPIOE
+#define DCC_MAIN_L_Pin GPIO_PIN_11
+#define DCC_MAIN_L_GPIO_Port GPIOE
 #define LED_Red_Pin GPIO_PIN_14
 #define LED_Red_GPIO_Port GPIOB
+#define DCC_PROG_K_Pin GPIO_PIN_14
+#define DCC_PROG_K_GPIO_Port GPIOD
+#define DCC_PROG_L_Pin GPIO_PIN_15
+#define DCC_PROG_L_GPIO_Port GPIOD
 #define USB_Out_Pin GPIO_PIN_6
 #define USB_Out_GPIO_Port GPIOG
 #define USB_In_Pin GPIO_PIN_7
 #define USB_In_GPIO_Port GPIOG
 #define LED_Blue_Pin GPIO_PIN_7
 #define LED_Blue_GPIO_Port GPIOB
-
 /* USER CODE BEGIN Private defines */
 
 #define VERSION "1.2.1+-STM32F7"
+
+// Timer Definition
+// TIM1 == MAIN TIMER
+#define DCC_TIMER_MAIN htim1
+#define DCC_TIMER_MAIN_INSTANCE TIM1
+#define DCC_TIMER_MAIN_ACTIVE_CHANNEL_K HAL_TIM_ACTIVE_CHANNEL_1
+#define DCC_TIMER_MAIN_ACTIVE_CHANNEL_L HAL_TIM_ACTIVE_CHANNEL_2
+#define DCC_TIMER_MAIN_CHANNEL_K TIM_CHANNEL_1
+#define DCC_TIMER_MAIN_CHANNEL_L TIM_CHANNEL_2
+#define DCC_TIMER_MAIN_CCR_K DCC_TIMER_MAIN_INSTANCE->CCR1
+#define DCC_TIMER_MAIN_CCR_L DCC_TIMER_MAIN_INSTANCE->CCR2
+// TIM4 == PROG TIMER
+#define DCC_TIMER_PROG htim1
+#define DCC_TIMER_PROG_INSTANCE TIM4
+#define DCC_TIMER_PROG_ACTIVE_CHANNEL_K HAL_TIM_ACTIVE_CHANNEL_3
+#define DCC_TIMER_PROG_ACTIVE_CHANNEL_L HAL_TIM_ACTIVE_CHANNEL_4
+#define DCC_TIMER_PROG_CHANNEL_K TIM_CHANNEL_3
+#define DCC_TIMER_PROG_CHANNEL_L TIM_CHANNEL_4
+#define DCC_TIMER_PROG_CCR_K DCC_TIMER_PROG_INSTANCE->CCR3
+#define DCC_TIMER_PROG_CCR_L DCC_TIMER_PROG_INSTANCE->CCR4
 
 #define USART_ICR_CLEAR_ALL ( USART_ICR_PECF    |\
                               USART_ICR_FECF    |\

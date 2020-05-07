@@ -1,4 +1,5 @@
 #include "cli.h"
+#include "main.h"
 #include "printf-stdarg.h"
 
 /**
@@ -33,17 +34,47 @@ BaseType_t prvPowerOnCommand( char *pcWriteBuffer,
                              size_t xWriteBufferLen,
                              const char *pcCommandString )
 {
-	 // TODO: OUTPUT DISABLE ON MAIN TRACK and PROG TRACL
-	snprintf(pcWriteBuffer, xWriteBufferLen, "//TODO: ENABLE MAIN TRACK\r\n\r\n");
+	 // Disable Channels, then disable counter.
+	 HAL_GPIO_WritePin(ENABLE_MAIN_GPIO_Port, ENABLE_MAIN_Pin, GPIO_PIN_SET);
+	 HAL_GPIO_WritePin(ENABLE_PROG_GPIO_Port, ENABLE_PROG_Pin, GPIO_PIN_SET);
+ 	snprintf(pcWriteBuffer, xWriteBufferLen, "1\r\n\r\n");
 	return pdFALSE;
 }
 
+/**
+ * Power Off command
+ */
+BaseType_t prvPowerOffCommand( char *pcWriteBuffer,
+		size_t xWriteBufferLen,
+		const char *pcCommandString )
+{
+	 // Disable Channels, then disable counter.
+	 HAL_GPIO_WritePin(ENABLE_MAIN_GPIO_Port, ENABLE_MAIN_Pin, GPIO_PIN_RESET);
+	 HAL_GPIO_WritePin(ENABLE_PROG_GPIO_Port, ENABLE_PROG_Pin, GPIO_PIN_RESET);
+ 	snprintf(pcWriteBuffer, xWriteBufferLen, "0\r\n\r\n");
+	return pdFALSE;
+}
+
+/**
+ * Power Toggle command
+ */
+BaseType_t prvPowerToggleCommand( char *pcWriteBuffer,
+		size_t xWriteBufferLen,
+		const char *pcCommandString )
+{
+	// Disable Channels, then disable counter.
+	HAL_GPIO_TogglePin(ENABLE_MAIN_GPIO_Port, ENABLE_MAIN_Pin);
+	HAL_GPIO_TogglePin(ENABLE_PROG_GPIO_Port, ENABLE_PROG_Pin);
+	uint8_t pin_status = ((ENABLE_MAIN_GPIO_Port->ODR & ENABLE_MAIN_Pin) != 0X00u);
+ 	snprintf(pcWriteBuffer, xWriteBufferLen,"%u\r\n\r\n", pin_status);
+	return pdFALSE;
+}
 
 static const CLI_Command_Definition_t xPowerOnCommand =
 {
 		"<1",
 		"<1>:\r\n\tTurn ON track power.\r\n",
-		dummyCommand,
+		prvPowerOnCommand,
 		0
 };
 
@@ -51,9 +82,18 @@ static const CLI_Command_Definition_t xPowerOffCommand =
 {
 		"<0",
 		"<0>:\r\n\tTurn OFF track power.\r\n",
-		dummyCommand,
+		prvPowerOffCommand,
 		0
 };
+
+static const CLI_Command_Definition_t xPowerToggleCommand =
+{
+		"<+",
+		"<+>:\r\n\tToggle ON/OFF track power.\r\n",
+		prvPowerToggleCommand,
+		0
+};
+
 
 static const CLI_Command_Definition_t xThrottleCommand =
 {
@@ -153,4 +193,6 @@ void vRegisterCLICommands() {
   FreeRTOS_CLIRegisterCommand(&xPowerOffCommand);      // 11
   FreeRTOS_CLIRegisterCommand(&xReadCurrentCommand);   // 12
   FreeRTOS_CLIRegisterCommand(&xStatusCommand);        // 13
+  // Extras:
+  FreeRTOS_CLIRegisterCommand(&xPowerToggleCommand);        // 14
 }
