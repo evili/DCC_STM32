@@ -4,6 +4,8 @@
 #include "dcc.h"
 #include "printf-stdarg.h"
 
+#define CLI_DEFAULT_WAIT 200U
+
 extern osMessageQueueId_t dccMainPacketQueueHandle;
 extern osMessageQueueId_t dccProgPacketQueueHandle;
 
@@ -77,10 +79,11 @@ BaseType_t prvPowerToggleCommand( char *pcWriteBuffer,
  	snprintf(pcWriteBuffer, xWriteBufferLen,"<p%u>\r\n\r\n", pin_status);
 	return pdFALSE;
 }
+
 /**
  * Throttle command
  */
-BaseType_t prvPowerThrottleCommand( char *pcWriteBuffer,
+BaseType_t prvThrottleCommand( char *pcWriteBuffer,
 		size_t xWriteBufferLen,
 		const char *pcCommandString )
 {
@@ -122,10 +125,10 @@ BaseType_t prvPowerThrottleCommand( char *pcWriteBuffer,
 		DCC_Packet_set_speed(packet, spd, dir);
 		// Register[cab] == NULL && packet != NULL ==> No Register, packet is "new"
 		if(Register[cab] == NULL) {
-			osStatus status = osMessageQueuePut(dccMainPacketQueueHandle, (void *) packet, 0U, 200U);
+			osStatus status = osMessageQueuePut(dccMainPacketQueueHandle, (void *) packet, 0U, CLI_DEFAULT_WAIT);
 			if(status != osOK) {
 				vPortFree(packet);
-				snprintf(pcWriteBuffer, xWriteBufferLen, "ERROR: Paquet queue problem %d\r\n\r\n", status);
+				snprintf(pcWriteBuffer, xWriteBufferLen, "ERROR: Packet queue problem %d\r\n\r\n", (int) status);
 				return pdFALSE;
 			}
 			else {
@@ -139,6 +142,35 @@ BaseType_t prvPowerThrottleCommand( char *pcWriteBuffer,
 	return pdFALSE;
 }
 
+/**
+ * Function command
+ */
+BaseType_t prvFunctionCommand( char *pcWriteBuffer,
+		size_t xWriteBufferLen,
+		const char *pcCommandString )
+{
+	DCC_Packet *packet;
+    unsigned int cab   = atol(FreeRTOS_CLIGetParameter(pcCommandString, 1, NULL));
+    uint8_t fbyte = atoi(FreeRTOS_CLIGetParameter(pcCommandString, 2, NULL));
+    // adjust ranges
+    cab = (cab > DCC_ADDRESS_MAX) ? DCC_ADDRESS_MAX   : cab;
+    fbyte = (fbyte | 0x80) & 0xBF;
+    packet = (DCC_Packet *) pvPortMalloc(sizeof(DCC_Packet));
+    *packet = DCC_PACKET_CMD;
+    packet->data[0] = fbyte;
+    DCC_Packet_set_address(packet, cab);
+    osStatus status = osMessageQueuePut(dccMainPacketQueueHandle, (void *) packet, 0U, CLI_DEFAULT_WAIT);
+	if(status != osOK) {
+		vPortFree(packet);
+		snprintf(pcWriteBuffer, xWriteBufferLen, "ERROR: Packet queue problem %d\r\n\r\n", (int) status);
+	}
+	else {
+		snprintf(pcWriteBuffer, xWriteBufferLen, "\r\n");
+	}
+	return pdFALSE;
+}
+
+///// CLI definitions
 static const CLI_Command_Definition_t xPowerOnCommand =
 {
 		"<1",
@@ -168,16 +200,18 @@ static const CLI_Command_Definition_t xThrottleCommand =
 {
 		"<t",
 		"<t REGISTER CAB SPEED DIRECTION>:\r\n\tSets the throttle for a mobile engine decoder using 128-step speeds.\r\n",
-		prvPowerThrottleCommand,
+		prvThrottleCommand,
 		4
 };
+
 static const CLI_Command_Definition_t xFunctionCommand =
 {
 		"<f",
-		"<f BYTE1 [BYTE2]>:\r\n\tControls mobile engine decoder functions F0-F28.\r\n",
-		dummyCommand,
-		0
+		"<f CAB BYTE1 [BYTE2]>:\r\n\tControls mobile engine decoder functions F0-F28.\r\n",
+		prvFunctionCommand,
+		2
 };
+
 static const CLI_Command_Definition_t xAccessoryCommand =
 {
 		"<a",

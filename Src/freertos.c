@@ -156,13 +156,13 @@ void MX_FREERTOS_Init(void) {
 
   /* Create the queue(s) */
   /* creation of dccMainPacketQueue */
-  dccMainPacketQueueHandle = osMessageQueueNew (21, sizeof(DCC_Packet *), &dccMainPacketQueue_attributes);
+  dccMainPacketQueueHandle = osMessageQueueNew (25, sizeof(DCC_Packet *), &dccMainPacketQueue_attributes);
 
   /* creation of commandQueue */
   commandQueueHandle = osMessageQueueNew (72, sizeof(char *), &commandQueue_attributes);
 
   /* creation of dccProgPacketQueue */
-  dccProgPacketQueueHandle = osMessageQueueNew (2, sizeof(DCC_Packet *), &dccProgPacketQueue_attributes);
+  dccProgPacketQueueHandle = osMessageQueueNew (3, sizeof(DCC_Packet *), &dccProgPacketQueue_attributes);
 
   /* USER CODE BEGIN RTOS_QUEUES */
   /* add queues, ... */

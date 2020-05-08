@@ -1,6 +1,6 @@
 #MicroXplorer Configuration settings - do not modify
 PA11.GPIO_Speed=GPIO_SPEED_FREQ_VERY_HIGH
-FREERTOS.Queues01=dccMainPacketQueue,21,DCC_Packet *,0,Dynamic,NULL,NULL;commandQueue,72,char *,0,Dynamic,NULL,NULL;dccProgPacketQueue,2,DCC_Packet *,0,Dynamic,NULL,NULL
+FREERTOS.Queues01=dccMainPacketQueue,25,DCC_Packet *,0,Dynamic,NULL,NULL;commandQueue,72,char *,0,Dynamic,NULL,NULL;dccProgPacketQueue,3,DCC_Packet *,0,Dynamic,NULL,NULL
 PB13.GPIOParameters=GPIO_Speed,GPIO_PuPd,GPIO_Mode
 RCC.USART1Freq_Value=108000000
 RCC.TIM17Freq_Value=72000000

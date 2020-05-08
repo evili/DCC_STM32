@@ -198,21 +198,24 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
-#if 0
-/**
- * @brief Retargets the C library printf function to the USART.
- * @param None
- * @retval None
- */
-PUTCHAR_PROTOTYPE
+void vAssertCalled( uint32_t ulLine, const char *pcFile )
 {
- /* Place your implementation of fputc here */
- /* e.g. write a character to the USART2 and Loop until the end of transmission */
- HAL_UART_Transmit(&huart3, (uint8_t *)&ch, 1, 0xFFFF);
+volatile unsigned long ul = 0;
 
- return ch;
+        ( void ) pcFile;
+        ( void ) ulLine;
+
+        taskENTER_CRITICAL();
+        {
+                /* Set ul to a non-zero value using the debugger to step out of this
+                function. */
+                while( ul == 0 )
+                {
+                        __NOP();
+                }
+        }
+        taskEXIT_CRITICAL();
 }
-#endif
 /* USER CODE END 4 */
 
  /**

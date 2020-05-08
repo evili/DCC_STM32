@@ -98,7 +98,7 @@ static int prints(char **out, const char *string, int width, int pad)
 }
 
 /* the following should be enough for 32 bit int */
-#define PRINT_BUF_LEN 12
+#define PRINT_BUF_LEN 14
 
 static int printi(char **out, int i, int b, int sg, int width, int pad, int letbase)
 {
