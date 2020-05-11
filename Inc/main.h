@@ -63,6 +63,7 @@ void assert_failed(uint8_t* file, uint32_t line);
 #define DCC_QUEUE_LEN 20
 #define USER_Btn_Pin GPIO_PIN_13
 #define USER_Btn_GPIO_Port GPIOC
+#define USER_Btn_EXTI_IRQn EXTI15_10_IRQn
 #define ENABLE_PROG_Pin GPIO_PIN_5
 #define ENABLE_PROG_GPIO_Port GPIOF
 #define LED_Green_Pin GPIO_PIN_0

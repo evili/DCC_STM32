@@ -61,7 +61,7 @@
 
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN Variables */
-
+volatile uint8_t button_debounce = 1;
 DCC_Packet_Pump *main_pump, *prog_pump;
 
 //volatile uint32_t tim1_last_cnt;
@@ -407,6 +407,20 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){
 void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart) {
 	if(huart->Instance == USART3) {
 		osThreadFlagsSet(commandTaskHandle, COMMAND_FLAG_ERROR);
+	}
+}
+
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
+{
+	if(GPIO_Pin == USER_Btn_Pin)
+	{
+		if(button_debounce == 1) {
+			HAL_TIM_Base_Start_IT(&htim6);
+			button_debounce = 0;
+		}
+		else {
+			__NOP();
+		}
 	}
 }
 /* USER CODE END Application */
