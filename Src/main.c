@@ -52,7 +52,7 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-
+extern volatile uint8_t button_debounce;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -111,8 +111,12 @@ int main(void)
   MX_USART3_UART_Init();
   MX_USB_OTG_FS_PCD_Init();
   MX_RNG_Init();
+  MX_TIM4_Init();
+  MX_TIM6_Init();
   /* USER CODE BEGIN 2 */
-
+  // Disable output
+  HAL_GPIO_WritePin(ENABLE_MAIN_GPIO_Port, ENABLE_MAIN_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(ENABLE_PROG_GPIO_Port, ENABLE_PROG_Pin, GPIO_PIN_RESET);
   /* USER CODE END 2 */
 
   /* Init scheduler */
@@ -182,9 +186,12 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
-  PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_USART3|RCC_PERIPHCLK_CLK48;
+  PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_TIM|RCC_PERIPHCLK_USART3
+                              |RCC_PERIPHCLK_CLK48;
   PeriphClkInitStruct.Usart3ClockSelection = RCC_USART3CLKSOURCE_PCLK1;
   PeriphClkInitStruct.Clk48ClockSelection = RCC_CLK48SOURCE_PLL;
+  PeriphClkInitStruct.TIMPresSelection = RCC_TIMPRES_ACTIVATED;
+
   if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInitStruct) != HAL_OK)
   {
     Error_Handler();
@@ -192,21 +199,24 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
-#if 0
-/**
- * @brief Retargets the C library printf function to the USART.
- * @param None
- * @retval None
- */
-PUTCHAR_PROTOTYPE
+void vAssertCalled( uint32_t ulLine, const char *pcFile )
 {
- /* Place your implementation of fputc here */
- /* e.g. write a character to the USART2 and Loop until the end of transmission */
- HAL_UART_Transmit(&huart3, (uint8_t *)&ch, 1, 0xFFFF);
+volatile unsigned long ul = 0;
 
- return ch;
+        ( void ) pcFile;
+        ( void ) ulLine;
+
+        taskENTER_CRITICAL();
+        {
+                /* Set ul to a non-zero value using the debugger to step out of this
+                function. */
+                while( ul == 0 )
+                {
+                        __NOP();
+                }
+        }
+        taskEXIT_CRITICAL();
 }
-#endif
 /* USER CODE END 4 */
 
  /**
@@ -226,7 +236,15 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
     HAL_IncTick();
   }
   /* USER CODE BEGIN Callback 1 */
-
+  else if(htim->Instance == TIM6)
+  {
+	  if(HAL_GPIO_ReadPin(USER_Btn_GPIO_Port, USER_Btn_Pin) == GPIO_PIN_RESET)
+	  {
+		  HAL_TIM_Base_Stop_IT(&htim1);
+		  HAL_GPIO_WritePin(LED_Red_GPIO_Port, LED_Red_Pin, GPIO_PIN_RESET);
+		  button_debounce = 1;
+	  }
+  }
   /* USER CODE END Callback 1 */
 }
 

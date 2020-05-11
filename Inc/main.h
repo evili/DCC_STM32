@@ -37,14 +37,6 @@ extern "C" {
 
 /* Exported types ------------------------------------------------------------*/
 /* USER CODE BEGIN ET */
-
-typedef enum CMD_Status {
-	CMD_STATUS_IDLE= 0x00,
-	CMD_STATUS_TRANSMIT,
-	CMD_STATUS_RECEIVE,
-	CMD_STATUS_STOP
-} CMD_Status;
-
 /* USER CODE END ET */
 
 /* Exported constants --------------------------------------------------------*/
@@ -71,16 +63,23 @@ void assert_failed(uint8_t* file, uint32_t line);
 #define DCC_QUEUE_LEN 20
 #define USER_Btn_Pin GPIO_PIN_13
 #define USER_Btn_GPIO_Port GPIOC
+#define USER_Btn_EXTI_IRQn EXTI15_10_IRQn
+#define ENABLE_PROG_Pin GPIO_PIN_5
+#define ENABLE_PROG_GPIO_Port GPIOF
 #define LED_Green_Pin GPIO_PIN_0
 #define LED_Green_GPIO_Port GPIOB
-#define ENABLE_A_Pin GPIO_PIN_15
-#define ENABLE_A_GPIO_Port GPIOF
-#define DCC_K_Pin GPIO_PIN_9
-#define DCC_K_GPIO_Port GPIOE
-#define DCC_L_Pin GPIO_PIN_11
-#define DCC_L_GPIO_Port GPIOE
+#define ENABLE_MAIN_Pin GPIO_PIN_15
+#define ENABLE_MAIN_GPIO_Port GPIOF
+#define DCC_MAIN_K_Pin GPIO_PIN_9
+#define DCC_MAIN_K_GPIO_Port GPIOE
+#define DCC_MAIN_L_Pin GPIO_PIN_11
+#define DCC_MAIN_L_GPIO_Port GPIOE
 #define LED_Red_Pin GPIO_PIN_14
 #define LED_Red_GPIO_Port GPIOB
+#define DCC_PROG_K_Pin GPIO_PIN_14
+#define DCC_PROG_K_GPIO_Port GPIOD
+#define DCC_PROG_L_Pin GPIO_PIN_15
+#define DCC_PROG_L_GPIO_Port GPIOD
 #define USB_Out_Pin GPIO_PIN_6
 #define USB_Out_GPIO_Port GPIOG
 #define USB_In_Pin GPIO_PIN_7
@@ -88,13 +87,48 @@ void assert_failed(uint8_t* file, uint32_t line);
 #define LED_Blue_Pin GPIO_PIN_7
 #define LED_Blue_GPIO_Port GPIOB
 /* USER CODE BEGIN Private defines */
-#define COMMAND_LINE_LEN      72
-#define COMMAND_END_OF_LINE 0x0A //  == LF == '\n'
-#define COMMAND_FLAG_IDLE      0x00000000U
-#define	COMMAND_FLAG_TRANSMIT  0x00000001U
-#define	COMMAND_FLAG_RECEIVE   0x00000002U
-#define	COMMAND_FLAG_STOP      0x00000004U
-#define COMMAND_FLAGS         (COMMAND_FLAG_TRANSMIT | COMMAND_FLAG_RECEIVE | COMMAND_FLAG_STOP)
+
+#define VERSION "1.2.1+-STM32F7"
+
+// Timer Definition
+// TIM1 == MAIN TIMER
+#define DCC_TIMER_MAIN htim1
+#define DCC_TIMER_MAIN_INSTANCE TIM1
+#define DCC_TIMER_MAIN_ACTIVE_CHANNEL_K HAL_TIM_ACTIVE_CHANNEL_1
+#define DCC_TIMER_MAIN_ACTIVE_CHANNEL_L HAL_TIM_ACTIVE_CHANNEL_2
+#define DCC_TIMER_MAIN_CHANNEL_K TIM_CHANNEL_1
+#define DCC_TIMER_MAIN_CHANNEL_L TIM_CHANNEL_2
+#define DCC_TIMER_MAIN_CCR_K DCC_TIMER_MAIN_INSTANCE->CCR1
+#define DCC_TIMER_MAIN_CCR_L DCC_TIMER_MAIN_INSTANCE->CCR2
+// TIM4 == PROG TIMER
+#define DCC_TIMER_PROG htim1
+#define DCC_TIMER_PROG_INSTANCE TIM4
+#define DCC_TIMER_PROG_ACTIVE_CHANNEL_K HAL_TIM_ACTIVE_CHANNEL_3
+#define DCC_TIMER_PROG_ACTIVE_CHANNEL_L HAL_TIM_ACTIVE_CHANNEL_4
+#define DCC_TIMER_PROG_CHANNEL_K TIM_CHANNEL_3
+#define DCC_TIMER_PROG_CHANNEL_L TIM_CHANNEL_4
+#define DCC_TIMER_PROG_CCR_K DCC_TIMER_PROG_INSTANCE->CCR3
+#define DCC_TIMER_PROG_CCR_L DCC_TIMER_PROG_INSTANCE->CCR4
+
+#define USART_ICR_CLEAR_ALL ( USART_ICR_PECF    |\
+                              USART_ICR_FECF    |\
+                              USART_ICR_NCF     |\
+                              USART_ICR_ORECF   |\
+                              USART_ICR_IDLECF  |\
+                              USART_ICR_TCCF    |\
+                              USART_ICR_LBDCF   |\
+                              USART_ICR_CTSCF   |\
+                              USART_ICR_RTOCF   |\
+                              USART_ICR_EOBCF   |\
+                              USART_ICR_CMCF )
+
+#define COMMAND_END_OF_LINE 0x0000000aul
+
+#define COMMAND_FLAG_RECEIVE_OK  0x00000001ul
+#define COMMAND_FLAG_TRANSMIT_OK 0x00000002ul
+#define COMMAND_FLAG_ERROR       0x00000004ul
+#define COMMAND_FLAGS       (COMMAND_FLAG_RECEIVE_OK | COMMAND_FLAG_TRANSMIT_OK | COMMAND_FLAG_ERROR)
+
 /* USER CODE END Private defines */
 
 #ifdef __cplusplus

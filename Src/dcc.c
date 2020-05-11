@@ -1,20 +1,10 @@
 #include "dcc.h"
-#include "bits.h"
 #include "cmsis_os.h"
-#include "printf-stdarg.h"
+// #include "printf-stdarg.h"
 
 #ifndef NULL
 #define NULL 0
 #endif
-
-#define DCC_ERROR(n, s) printf("\nE: %s: %u\n", (s), (n));
-
-//const DCC_Packet DCC_Packet_Idle  = {1, -1, 0xFF, {0x00, 0x00, 0x00, 0x00, 0x00}, 0xFF};
-// TEST PATTERN of alternin 1 and 0 in adress, data and crc
-// const DCC_Packet DCC_Packet_Idle  = {1, -1, 0x50, {0x05, 0x00, 0x00, 0x00, 0x00}, 0x55};
-//const DCC_Packet DCC_Packet_Reset = {1,  0, 0x00, {0x00, 0x00, 0x00, 0x00, 0x00}, 0x00};
-//const DCC_Packet DCC_Packet_Stop  = {1,  0, 0x00, {0x40, 0x00, 0x00, 0x00, 0x00}, 0x00};
-
 
 void DCC_Packet_adjust_crc(DCC_Packet *p) {
   p->crc = p->address_high;
@@ -63,47 +53,6 @@ void DCC_Packet_set_speed_28(DCC_Packet *p, uint8_t speed, uint8_t dir) {
   }
   DCC_Packet_adjust_crc(p);
 }
-
-/*
-void DCC_Packet_to_DCC_Stream(DCC_Packet *packet, DCC_Stream *stream) {
-  stream->nbits = DCC_PACKET_PREAMBLE_LEN
-	+  DCC_PACKET_ADDRESS_START_BIT_LEN + DCC_PACKET_ADDRES_LEN
-    + (DCC_PACKET_DATA_START_BIT_LEN + DCC_PACKET_ADDRES_LEN ) * packet->data_len
-    +  DCC_PACKET_CRC_START_BIT_LEN + DCC_PACKET_CRC_LEN
-    +  DCC_PACKET_END_BIT_LEN;
-  stream->data[0] = 0xFF; // 8 - Preamble Bits
-  stream->data[1] = 0xFC + __READ_BIT(packet->address, 7);
-  stream->data[2] = (packet->address << 1); // 6 bit Address + Zero bit
-  
-  uint8_t  packet_byte = 0, packet_bit = 7, data_byte = 3, data_bit = 7, stream_bit = 23;
-  for(int i=stream_bit; i < stream->nbits; i++) {
-    if(__READ_BIT(packet->data[packet_byte], packet_bit)) {
-      __SET_BIT(&stream->data[data_byte], data_bit);
-    }
-    else{
-      __UNSET_BIT(&stream->data[data_byte], data_bit);
-    }
-    if(packet_bit == 0) {
-      packet_byte++;
-      packet_bit = 7;
-    }
-    else {
-      packet_bit--;
-    }
-    if(data_bit == 0) {
-      data_byte++;
-      data_bit = 7;
-    }
-    else {
-      data_bit--;
-    }
-  }
-//  assert(packet_byte == packet->data_len);
-//  assert(packet_bit == 7);
-//  assert(data_byte == (stream->nbits/8));
-//  assert(data_bit == (stream->nbits % 8));
-}
-*/
 
 osStatus DCC_Packet_Pump_init(DCC_Packet_Pump *pump, osMessageQId mq_id) {
   osStatus ost = osErrorNoMemory;
@@ -204,22 +153,22 @@ unsigned long DCC_Packet_Pump_next(DCC_Packet_Pump *pump) {
       }
       // Grab next packet.
       if (pump->packet->count == 0) {
-    	printf("%s\n", "Count is zero. Freeing");
+    	// printf("%s\n", "Count is zero. Freeing");
     	vPortFree(pump->packet);
       }
       else {
-    	printf("%s\n", "Returning packet to queue");
+    	// printf("%s\n", "Returning packet to queue");
         status = osMessageQueuePut(pump->queue, (void *) pump->packet, 0U, 0U);
-        if(status != osOK)
-      	  DCC_ERROR(status, "Can't put on queue.");
+        // if(status != osOK)
+      	//  DCC_ERROR(status, "Can't put on queue.");
       }
-      printf("%s\n","Getting new packet.");
+      // printf("%s\n","Getting new packet.");
       status = osMessageQueueGet(pump->queue, (void *) pump->packet, 0U, 0U);
-      if(status != osOK) {
-    	  if (osErrorResource == status)
-    		  DCC_ERROR(status, "Nothing to get from queue.");
-    	  printf("%s\n", "No message in queue");
-      }
+      // if(status != osOK) {
+      //  if (osErrorResource == status)
+      //	  DCC_ERROR(status, "Nothing to get from queue.");
+    	  // printf("%s\n", "No message in queue");
+      // }
       break;
   }
   return emit;

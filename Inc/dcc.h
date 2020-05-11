@@ -100,9 +100,9 @@ void DCC_Packet_set_speed(DCC_Packet *p, uint8_t speed, uint8_t direction);
 //extern const DCC_Packet DCC_Packet_Reset;
 //extern const DCC_Packet DCC_Packet_Stop;
 #define DCC_PACKET_IDLE  (DCC_Packet) {.data_len = 1, .count = -1, .address = 0x00FF, .data = {0x00, 0x00, 0x00, 0x00, 0x00}, .crc = 0xFF}
-#define DCC_PACKET_RESET (DCC_Packet) {.data_len = 1, .count =  5, .address = 0x0000, .data = {0x00, 0x00, 0x00, 0x00, 0x00}, .crc = 0x00}
-#define DCC_PACKET_STOP  (DCC_Packet) {.data_len = 1, .count =  5, .address = 0x0000, .data = {0x41, 0x00, 0x00, 0x00, 0x00}, .crc = 0x41}
-
+#define DCC_PACKET_RESET (DCC_Packet) {.data_len = 1, .count =  DCC_PACKET_DEFAULT_REPEAT, .address = 0x0000, .data = {0x00, 0x00, 0x00, 0x00, 0x00}, .crc = 0x00}
+#define DCC_PACKET_STOP  (DCC_Packet) {.data_len = 1, .count =  DCC_PACKET_DEFAULT_REPEAT, .address = 0x0000, .data = {0x41, 0x00, 0x00, 0x00, 0x00}, .crc = 0x41}
+#define DCC_PACKET_CMD   (DCC_Packet) {.data_len = 1, .count =  DCC_PACKET_DEFAULT_REPEAT, .address = 0x0000, .data = {0x00, 0x00, 0x00, 0x00, 0x00}, .crc = 0x00}
 typedef struct DCC_Packet_Pump {
     DCC_Packet_State status;
     uint8_t bit;

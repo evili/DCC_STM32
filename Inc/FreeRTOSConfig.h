@@ -54,6 +54,7 @@
 /* USER CODE BEGIN 0 */
   extern void configureTimerForRunTimeStats(void);
   extern unsigned long getRunTimeCounterValue(void);
+  extern void vAssertCalled( uint32_t ulLine, const char *pcFile );
 /* USER CODE END 0 */
 #endif
 #define configENABLE_FPU                         0
@@ -145,7 +146,7 @@ See http://www.FreeRTOS.org/RTOS-Cortex-M3-M4.html. */
 /* Normal assert() semantics without relying on the provision of an assert.h
 header file. */
 /* USER CODE BEGIN 1 */
-#define configASSERT( x ) if ((x) == 0) {taskDISABLE_INTERRUPTS(); for( ;; );} 
+#define configASSERT( x ) if ((x) == 0) vAssertCalled(__LINE__, __FILE__);
 /* USER CODE END 1 */
 
 /* Definitions that map the FreeRTOS port interrupt handlers to their CMSIS
