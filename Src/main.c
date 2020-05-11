@@ -241,7 +241,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 	  if(HAL_GPIO_ReadPin(USER_Btn_GPIO_Port, USER_Btn_Pin) == GPIO_PIN_RESET)
 	  {
 		  HAL_TIM_Base_Stop_IT(&htim1);
-		  HAL_GPIO_TogglePin(LED_Red_GPIO_Port, LED_Red_Pin);
+		  HAL_GPIO_WritePin(LED_Red_GPIO_Port, LED_Red_Pin, GPIO_PIN_RESET);
 		  button_debounce = 1;
 	  }
   }

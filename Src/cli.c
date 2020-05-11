@@ -209,7 +209,7 @@ static const CLI_Command_Definition_t xFunctionCommand =
 		"<f",
 		"<f CAB BYTE1 [BYTE2]>:\r\n\tControls mobile engine decoder functions F0-F28.\r\n",
 		prvFunctionCommand,
-		1
+		2
 };
 
 static const CLI_Command_Definition_t xAccessoryCommand =

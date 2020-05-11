@@ -319,16 +319,16 @@ void StartCommandTask(void *argument)
 			xMoreDataToFollow = pdTRUE;
 			while(xMoreDataToFollow) {
 				// Replace the final '>' by an ' ' as we do not care...
-				for(int i=0; (i<configCOMMAND_INT_MAX_OUTPUT_SIZE) && (cInputString[i] != '\0'); i++){
-					cInputString[i] = (cInputString[i] == 0x3E) ? 0x0D :  cInputString[i];
-				}
+				//for(int i=0; (i<configCOMMAND_INT_MAX_OUTPUT_SIZE) && (cInputString[i] != '\0'); i++){
+				//	cInputString[i] = (cInputString[i] == 0x3E) ? 0x0D :  cInputString[i];
+				//}
 				xMoreDataToFollow = FreeRTOS_CLIProcessCommand( cInputString, cOutputString,
 						configCOMMAND_INT_MAX_OUTPUT_SIZE );
 				HAL_UART_Transmit_DMA(&huart3, cOutputString, strnlen((char *) cOutputString,
 						configCOMMAND_INT_MAX_OUTPUT_SIZE));
 				// Wait for transmission complete
 				while(!(huart3.Instance->ISR &= USART_ISR_TC)){
-					osDelay(1);
+					osDelay(10);
 				}
 			}
 			break;
@@ -416,6 +416,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 	{
 		if(button_debounce == 1) {
 			HAL_TIM_Base_Start_IT(&htim6);
+			HAL_GPIO_WritePin(LED_Red_GPIO_Port, LED_Red_Pin, GPIO_PIN_SET);
 			button_debounce = 0;
 		}
 		else {
