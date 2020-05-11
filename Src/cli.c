@@ -116,7 +116,7 @@ BaseType_t prvThrottleCommand( char *pcWriteBuffer,
     }
 
     // Register[cab] != NULL && packet == NULL ==> Register exists, packet is "old"
-    if(Register[cab])
+    if(Register[cab] != NULL)
     	packet = Register[cab];
 
     if(packet != NULL) {
@@ -209,7 +209,7 @@ static const CLI_Command_Definition_t xFunctionCommand =
 		"<f",
 		"<f CAB BYTE1 [BYTE2]>:\r\n\tControls mobile engine decoder functions F0-F28.\r\n",
 		prvFunctionCommand,
-		2
+		1
 };
 
 static const CLI_Command_Definition_t xAccessoryCommand =
@@ -219,6 +219,7 @@ static const CLI_Command_Definition_t xAccessoryCommand =
 		dummyCommand,
 		0
 };
+
 static const CLI_Command_Definition_t xTurnoutCommand =
 {
 		"<T",
@@ -242,6 +243,7 @@ static const CLI_Command_Definition_t xBitCVMainCommand =
 		dummyCommand,
 		0
 };
+
 static const CLI_Command_Definition_t xWriteCVProgCommand =
 {
 		"<W",
