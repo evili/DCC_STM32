@@ -1,0 +1,13 @@
+# DCC_STM32
+
+# Arduino Motor Shield v3
+
+ENABLE A = D03 = PE13  
+ENABLE B = D11 = PA7
+
+DIR A    = D12 = PA6 = TIM3_CH1, TIM13_CH1
+DIR B    = D13 = PA5 = TIM2_CH1, TIM8_CH1N
+
+SENSE A  =  A0 = PA3 = ADC123_IN3
+SENSE B  =  A1 = PC0 = ADC123_IN10
+

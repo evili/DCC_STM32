@@ -44,19 +44,31 @@
 
 /* Private macro -------------------------------------------------------------*/
 /* USER CODE BEGIN PM */
+#if MOTOR_SHIELD_TYPE == MOTOR_SHIELD_TYPE_IHM041
 #define SETUP_TIMER(track) \
 		HAL_TIM_PWM_Start(&DCC_TIMER_##track , DCC_TIMER_ ##track## _CHANNEL_L);  /* PWM on Channel L */ \
 		HAL_TIM_PWM_Start(&DCC_TIMER_ ##track , DCC_TIMER_ ##track## _CHANNEL_K); /* PWM on Channel K */ \
 	    DCC_TIMER_ ##track## _INSTANCE->CR1 &= ~TIM_CR1_CEN; /* Stop Counter */ \
 	    DCC_TIMER_ ##track## _INSTANCE->ARR = DCC_ZERO_ARR; /* Preload values */ \
 	    DCC_TIMER_ ##track## _CCR_K = DCC_ZERO_CCR; \
+	    DCC_TIMER_ ##track## _CCR_L = DCC_ZERO_CCR; \
+	    DCC_TIMER_ ##track## _INSTANCE->EGR &= TIM_EGR_UG; /* Trigger update (preload loaded) */ \
+	    DCC_TIMER_ ##track## _INSTANCE->EGR &= TIM_EGR_UG; \
+	    DCC_TIMER_ ##track## _INSTANCE->SR = 0ul; /* Clear all Interrupts */ \
+	    DCC_TIMER_ ##track## _INSTANCE->DIER = TIM_DIER_CC1IE; /* Enable conmutation Interrupt ONLY */ \
+	    DCC_TIMER_ ##track## _INSTANCE->CR1 |= TIM_CR1_CEN; /* Enable timer */
+#elif MOTOR_SHIELD_TYPE == MOTOR_SHIELD_TYPE_ARDUINO_V3
+#define SETUP_TIMER(track) \
+		HAL_TIM_PWM_Start(&DCC_TIMER_ ##track , DCC_TIMER_ ##track## _CHANNEL_K); /* PWM on Channel K */ \
+	    DCC_TIMER_ ##track## _INSTANCE->CR1 &= ~TIM_CR1_CEN; /* Stop Counter */ \
+	    DCC_TIMER_ ##track## _INSTANCE->ARR = DCC_ZERO_ARR; /* Preload values */ \
 	    DCC_TIMER_ ##track## _CCR_K = DCC_ZERO_CCR; \
 	    DCC_TIMER_ ##track## _INSTANCE->EGR &= TIM_EGR_UG; /* Trigger update (preload loaded) */ \
 	    DCC_TIMER_ ##track## _INSTANCE->EGR &= TIM_EGR_UG; \
 	    DCC_TIMER_ ##track## _INSTANCE->SR = 0ul; /* Clear all Interrupts */ \
 	    DCC_TIMER_ ##track## _INSTANCE->DIER = TIM_DIER_CC1IE; /* Enable conmutation Interrupt ONLY */ \
 	    DCC_TIMER_ ##track## _INSTANCE->CR1 |= TIM_CR1_CEN; /* Enable timer */
-
+#endif
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
@@ -369,11 +381,15 @@ void HAL_TIM_PWM_PulseFinishedCallback(TIM_HandleTypeDef *htim) {
 			if (DCC_Packet_Pump_next(main_pump) == DCC_ZERO) {
 				DCC_TIMER_MAIN_INSTANCE->ARR  = DCC_ZERO_ARR;
 				DCC_TIMER_MAIN_CCR_K = DCC_ZERO_CCR;
+#ifdef DCC_TIMER_MAIN_CCR_L
 				DCC_TIMER_MAIN_CCR_L = DCC_ZERO_CCR;
+#endif
 			} else {
 				DCC_TIMER_MAIN_INSTANCE->ARR  = DCC_ONE_ARR;
 				DCC_TIMER_MAIN_CCR_K = DCC_ONE_CCR;
+#ifdef DCC_TIMER_MAIN_CCR_L
 				DCC_TIMER_MAIN_CCR_L = DCC_ONE_CCR;
+#endif
 			}
 		}
 	}
@@ -382,11 +398,15 @@ void HAL_TIM_PWM_PulseFinishedCallback(TIM_HandleTypeDef *htim) {
 			if (DCC_Packet_Pump_next(prog_pump) == DCC_ZERO) {
 				DCC_TIMER_PROG_INSTANCE->ARR  = DCC_ZERO_ARR;
 				DCC_TIMER_PROG_CCR_K = DCC_ZERO_CCR;
-				DCC_TIMER_PROG_CCR_K = DCC_ZERO_CCR;
+#ifdef DCC_TIMER_PROG_CCR_L
+				DCC_TIMER_PROG_CCR_L = DCC_ZERO_CCR;
+#endif
 			} else {
 				DCC_TIMER_PROG_INSTANCE->ARR  = DCC_ONE_ARR;
 				DCC_TIMER_PROG_CCR_K = DCC_ONE_CCR;
-				DCC_TIMER_PROG_CCR_K = DCC_ONE_CCR;
+#ifdef DCC_TIMER_MAIN_CCR_L
+				DCC_TIMER_PROG_CCR_L = DCC_ONE_CCR;
+#endif
 			}
 		}
 	}
