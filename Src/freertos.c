@@ -32,6 +32,7 @@
 #include "string.h"
 #include "printf-stdarg.h"
 #include "FreeRTOS_CLI.h"
+#include "cli.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -267,8 +268,9 @@ void StartDccTask(void *argument)
 	// printf("\nPreparing TIMER%d for DCC.\n", 1);
 
 	// Disable timer on debug
-	__HAL_DBGMCU_FREEZE_TIM1();
-	__HAL_DBGMCU_FREEZE_TIM4();
+	__HAL_DBGMCU_FREEZE_TIM2();
+	__HAL_DBGMCU_FREEZE_TIM3();
+	__HAL_DBGMCU_FREEZE_TIM6();
 	__HAL_DBGMCU_FREEZE_TIM7();
 
 	// Setup Timers
@@ -318,12 +320,16 @@ void StartCommandTask(void *argument)
 				continue;
 			}
 			else {
+				HAL_GPIO_WritePin(LED_Red_GPIO_Port, LED_Red_Pin, GPIO_PIN_SET);
 				//TODO: Error from CLI
+				osDelay(100);
+				continue;
 			}
 		}
 		switch(flags) {
 		case COMMAND_FLAG_TRANSMIT_OK:
 			HAL_GPIO_TogglePin(LED_Blue_GPIO_Port, LED_Blue_Pin);
+			memset(cInputString, 0, configCOMMAND_INT_MAX_OUTPUT_SIZE);
 			HAL_UART_Receive_DMA(&huart3, cInputString, configCOMMAND_INT_MAX_OUTPUT_SIZE);
 			break;
 		case COMMAND_FLAG_RECEIVE_OK:
@@ -334,7 +340,7 @@ void StartCommandTask(void *argument)
 				//for(int i=0; (i<configCOMMAND_INT_MAX_OUTPUT_SIZE) && (cInputString[i] != '\0'); i++){
 				//	cInputString[i] = (cInputString[i] == 0x3E) ? 0x0D :  cInputString[i];
 				//}
-				xMoreDataToFollow = FreeRTOS_CLIProcessCommand( cInputString, cOutputString,
+				xMoreDataToFollow = FreeRTOS_CLIProcessCommand((char *) cInputString, (char *) cOutputString,
 						configCOMMAND_INT_MAX_OUTPUT_SIZE );
 				HAL_UART_Transmit_DMA(&huart3, cOutputString, strnlen((char *) cOutputString,
 						configCOMMAND_INT_MAX_OUTPUT_SIZE));

@@ -121,8 +121,11 @@ BaseType_t prvThrottleCommand( char *pcWriteBuffer,
 
     if(packet != NULL) {
         // Update packet with cab, speed and direction.
-		DCC_Packet_set_address(packet, cab);
-		DCC_Packet_set_speed(packet, spd, dir);
+    	// Critical section. The packet could be the actual pump packet.
+    	//taskENTER_CRITICAL();
+    	DCC_Packet_set_address(packet, cab);
+    	DCC_Packet_set_speed(packet, spd, dir);
+    	//taskEXIT_CRITICAL();
 		// Register[cab] == NULL && packet != NULL ==> No Register, packet is "new"
 		if(Register[cab] == NULL) {
 			osStatus status = osMessageQueuePut(dccMainPacketQueueHandle, (void *) packet, 0U, CLI_DEFAULT_WAIT);
