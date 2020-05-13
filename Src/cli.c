@@ -115,19 +115,21 @@ BaseType_t prvThrottleCommand( char *pcWriteBuffer,
     	}
     }
 
-    // Register[cab] != NULL && packet == NULL ==> Register exists, packet is "old"
-    if(Register[cab] != NULL)
-    	packet = Register[cab];
+    // Register[reg] != NULL && packet == NULL ==> Register exists, packet is "old"
+    if(Register[reg] != NULL)
+    	packet = Register[reg];
 
     if(packet != NULL) {
         // Update packet with cab, speed and direction.
     	// Critical section. The packet could be the actual pump packet.
     	//taskENTER_CRITICAL();
+    	UBaseType_t water_mark = uxTaskGetStackHighWaterMark(NULL);
     	DCC_Packet_set_address(packet, cab);
     	DCC_Packet_set_speed(packet, spd, dir);
+    	water_mark++;
     	//taskEXIT_CRITICAL();
-		// Register[cab] == NULL && packet != NULL ==> No Register, packet is "new"
-		if(Register[cab] == NULL) {
+		// Register[reg] == NULL && packet != NULL ==> No Register, packet is "new"
+		if(Register[reg] == NULL) {
 			osStatus status = osMessageQueuePut(dccMainPacketQueueHandle, (void *) packet, 0U, CLI_DEFAULT_WAIT);
 			if(status != osOK) {
 				vPortFree(packet);
@@ -135,13 +137,13 @@ BaseType_t prvThrottleCommand( char *pcWriteBuffer,
 				return pdFALSE;
 			}
 			else {
-				Register[cab] = packet;
+				Register[reg] = packet;
 			}
 		}
-		// if we are here, everything is ok (i.e. Register[cab] != NULL && packet != NULL
+		// if we are here, everything is ok (i.e. Register[reg] != NULL && packet != NULL
 		snprintf(pcWriteBuffer, xWriteBufferLen, "<T %d %d %d>\r\n\r\n", cab, spd, dir);
     }
-    // Register[cab] == NULL && packet == NULL ==> No Register and No packet: ignore
+    // Register[reg] == NULL && packet == NULL ==> No Register and No packet: ignore
 	return pdFALSE;
 }
 

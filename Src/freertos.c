@@ -100,7 +100,7 @@ osThreadId_t commandTaskHandle;
 const osThreadAttr_t commandTask_attributes = {
   .name = "commandTask",
   .priority = (osPriority_t) osPriorityLow,
-  .stack_size = 256 * 4
+  .stack_size = 512 * 4
 };
 /* Definitions for dccMainPacketQueue */
 osMessageQueueId_t dccMainPacketQueueHandle;

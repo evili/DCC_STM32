@@ -20,7 +20,7 @@ void DCC_Packet_set_address(DCC_Packet *p, uint16_t addr) {
   if(addr <= DCC_ADDRESS_MAX) {
     p->address = addr;
     if(p->address > DCC_SHORT_ADDRESS_MAX) {
-      p->address_high |= 0xC0; // 0b11000000
+      p->address |= 0xC000u; // 0b11000000
     }
     DCC_Packet_adjust_crc(p);
   }
@@ -72,7 +72,21 @@ osStatus DCC_Packet_Pump_init(DCC_Packet_Pump *pump, osMessageQId mq_id) {
 }
 
 unsigned long DCC_Packet_Pump_next(DCC_Packet_Pump *pump) {
-  unsigned long emit;
+  static unsigned long emit = DCC_ZERO;
+//
+// Debug Signal:
+//  define DCC_PUMP_DEBUG_ZERO to
+// produce a pure squared wave with period 200us
+// define DCC_PUMP_DEBUG_ONE to
+// produce a pure squared wave with period 116us
+// #define DCC_PUMP_DEBUG_ALTERN
+#ifdef DCC_PUMP_DEBUG_ZERO
+  emit = DCC_ZERO;
+#elif defined(DCC_PUMP_DEBUG_ONE)
+  emit = DCC_ONE;
+#elif defined(DCC_PUMP_DEBUG_ALTERN)
+  emit = (emit == DCC_ONE) ? DCC_ZERO : DCC_ONE;
+#else
   osStatus_t status;
   switch (pump->status) {
     case DCC_PACKET_PREAMBLE:
@@ -171,5 +185,6 @@ unsigned long DCC_Packet_Pump_next(DCC_Packet_Pump *pump) {
       // }
       break;
   }
+#endif // DCC_PUMP_DEBUG_ZERO
   return emit;
 }
