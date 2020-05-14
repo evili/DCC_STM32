@@ -32,7 +32,7 @@ extern "C" {
 #define DCC_ADDRESS_MAX                 (16127u) // == 0x3EFF == 0011 1110 1111 1111, the first (high) packet address byte
                                                  // begins with '11' and can not be all '1' because this will clash with broadcast.
 #define DCC_SHORT_ADDRESS_MAX             (127u)
-
+#define DCC_BROADCAST_ADDRESS			  (255u)
 /* Default repeat for DCC Packets */
 #define DCC_PACKET_DEFAULT_REPEAT            (5)
 /* DCC Packet count permanent */
@@ -99,7 +99,7 @@ void DCC_Packet_set_speed(DCC_Packet *p, uint8_t speed, uint8_t direction);
 //extern const DCC_Packet DCC_Packet_Idle;
 //extern const DCC_Packet DCC_Packet_Reset;
 //extern const DCC_Packet DCC_Packet_Stop;
-#define DCC_PACKET_IDLE  (DCC_Packet) {.data_len = 1, .count = -1, .address = 0x00FF, .data = {0x00, 0x00, 0x00, 0x00, 0x00}, .crc = 0xFF}
+#define DCC_PACKET_IDLE  (DCC_Packet) {.data_len = 1, .count = -1, .address = 0xFF00, .data = {0x00, 0x00, 0x00, 0x00, 0x00}, .crc = 0xFF}
 #define DCC_PACKET_RESET (DCC_Packet) {.data_len = 1, .count =  DCC_PACKET_DEFAULT_REPEAT, .address = 0x0000, .data = {0x00, 0x00, 0x00, 0x00, 0x00}, .crc = 0x00}
 #define DCC_PACKET_STOP  (DCC_Packet) {.data_len = 1, .count =  DCC_PACKET_DEFAULT_REPEAT, .address = 0x0000, .data = {0x41, 0x00, 0x00, 0x00, 0x00}, .crc = 0x41}
 #define DCC_PACKET_CMD   (DCC_Packet) {.data_len = 1, .count =  DCC_PACKET_DEFAULT_REPEAT, .address = 0x0000, .data = {0x00, 0x00, 0x00, 0x00, 0x00}, .crc = 0x00}

@@ -8,8 +8,10 @@
 
 void DCC_Packet_adjust_crc(DCC_Packet *p) {
   p->crc = p->address_high;
-  if (p->address_high > DCC_SHORT_ADDRESS_MAX) {
-    p->crc ^= p->address_low;
+  if (p->address_high != DCC_BROADCAST_ADDRESS ) {
+	  if (p->address_high > DCC_SHORT_ADDRESS_MAX) {
+		  p->crc ^= p->address_low;
+	  }
   }
   for (int i = 0; i < p->data_len; i++) {
 	  p->crc ^= p->data[i];
@@ -17,13 +19,19 @@ void DCC_Packet_adjust_crc(DCC_Packet *p) {
 }
 
 void DCC_Packet_set_address(DCC_Packet *p, uint16_t addr) {
-  if(addr <= DCC_ADDRESS_MAX) {
-    p->address = addr;
-    if(p->address > DCC_SHORT_ADDRESS_MAX) {
-      p->address |= 0xC000u; // 0b11000000
-    }
-    DCC_Packet_adjust_crc(p);
+  if(addr == DCC_BROADCAST_ADDRESS) {
+	  p->address_high = DCC_BROADCAST_ADDRESS;
+	  p->address_low = 0x00u;
   }
+  else {
+	  if(addr <= DCC_ADDRESS_MAX) {
+		  p->address = addr;
+		  if(p->address > DCC_SHORT_ADDRESS_MAX) {
+			  p->address |= 0xC000u; // 0b11000000
+		  }
+	  }
+  }
+  DCC_Packet_adjust_crc(p);
 }
 
 void DCC_Packet_set_speed(DCC_Packet *p, uint8_t speed, uint8_t dir) {
@@ -103,10 +111,13 @@ unsigned long DCC_Packet_Pump_next(DCC_Packet_Pump *pump) {
       pump->bit = 0;
       break;
     case DCC_PACKET_ADDRESS:
-      emit = ((pump->packet->address_high >> (pump->bit)) & (0x01)) ? DCC_ONE : DCC_ZERO;
+      emit = ((pump->packet->address_high << (pump->bit)) & (0x80u)) ? DCC_ONE : DCC_ZERO;
       pump->bit++;
       if (pump->bit >= DCC_PACKET_ADDRES_LEN) {
-        pump->status = (pump->packet->address_high > DCC_SHORT_ADDRESS_MAX) ? DCC_PACKET_ADDRESS_LOW_START : DCC_PACKET_DATA_START;
+    	  pump->status = (
+    			  (pump->packet->address_high == DCC_BROADCAST_ADDRESS) ||
+				  (pump->packet->address_high <= DCC_SHORT_ADDRESS_MAX)
+    	  ) ? DCC_PACKET_DATA_START: DCC_PACKET_ADDRESS_LOW_START;
         pump->data_count = 0;
         pump->bit = 0;
       }

@@ -67,7 +67,7 @@
 	    DCC_TIMER_ ##track## _INSTANCE->EGR &= TIM_EGR_UG; /* Trigger update (preload loaded) */ \
 	    DCC_TIMER_ ##track## _INSTANCE->EGR &= TIM_EGR_UG; \
 	    DCC_TIMER_ ##track## _INSTANCE->SR = 0ul; /* Clear all Interrupts */ \
-	    DCC_TIMER_ ##track## _INSTANCE->DIER = TIM_DIER_CC1IE; /* Enable conmutation Interrupt ONLY */ \
+	    DCC_TIMER_ ##track## _INSTANCE->DIER = TIM_DIER_CC1IE | TIM_DIER_UIE; /* Enable conmutation Interrupt ONLY */ \
 	    DCC_TIMER_ ##track## _INSTANCE->CR1 |= TIM_CR1_CEN; /* Enable timer */
 #endif
 /* USER CODE END PM */
@@ -75,7 +75,9 @@
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN Variables */
 volatile uint8_t button_debounce = 1;
-DCC_Packet_Pump *main_pump, *prog_pump;
+volatile uint8_t dcc_task_started = 0;
+volatile DCC_Packet_Pump *main_pump;
+volatile DCC_Packet_Pump *prog_pump;
 
 //volatile uint32_t tim1_last_cnt;
 //volatile uint32_t tim1_last_arr;
@@ -276,7 +278,7 @@ void StartDccTask(void *argument)
 	// Setup Timers
 	SETUP_TIMER(MAIN);
 	SETUP_TIMER(PROG);
-
+	osDelay(200);
 	// printf("Entering loop for DCC Pump. %s\n", "OK");
 	/* Infinite loop */
 	for (;;) {
@@ -312,6 +314,9 @@ void StartCommandTask(void *argument)
 			"<iDCC++ BASE STATION FOR ARDUINO STM32F7 X-N-IHM04A1 %s / %s>\r\n", __TIME__, __DATE__);
 	HAL_UART_Transmit_DMA(&huart3, cOutputString,
 			strnlen((char *)cOutputString, configCOMMAND_INT_MAX_OUTPUT_SIZE));
+
+	dcc_task_started = 1u;
+	osDelay(200);
 	for(;;) {
 		/* Pass the string to FreeRTOS+CLI. */
 		flags = osThreadFlagsWait(COMMAND_FLAGS, osFlagsWaitAny, 1000);

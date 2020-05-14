@@ -53,6 +53,9 @@
 
 /* USER CODE BEGIN PV */
 extern volatile uint8_t button_debounce;
+extern volatile uint8_t dcc_task_started;
+extern volatile DCC_Packet_Pump *main_pump;
+extern volatile DCC_Packet_Pump *prog_pump;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -243,6 +246,49 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 		  HAL_TIM_Base_Stop_IT(&htim6);
 		  HAL_GPIO_WritePin(LED_Red_GPIO_Port, LED_Red_Pin, GPIO_PIN_RESET);
 		  button_debounce = 1;
+	  }
+  }
+
+  volatile static uint32_t nfirst = 1050;
+  char bit = '0';
+  char nl[] = "0\n\n";
+  if (htim->Instance == DCC_TIMER_MAIN_INSTANCE) {
+	  if(dcc_task_started) {
+		  if(nfirst >0)
+		  {
+			  nfirst--;
+			  if(DCC_ZERO_ARR == DCC_TIMER_MAIN_INSTANCE->ARR) {
+				  bit = '0';
+			  }
+			  else if(DCC_ONE_ARR == DCC_TIMER_MAIN_INSTANCE->ARR) {
+				  bit = '1';
+			  }
+			  else {
+				  bit = '*';
+			  }
+			  switch(main_pump->status)
+			  {
+			  case DCC_PACKET_END:
+				  nl[0] = bit;
+				  nl[1] = '\n';
+				  HAL_UART_Transmit_DMA(&huart3, nl, 2);
+				  break;
+/*
+ 			  case DCC_PACKET_ADDRESS_START:
+			  case DCC_PACKET_ADDRESS_LOW_START:
+			  case DCC_PACKET_DATA_START:
+			  case DCC_PACKET_CRC_START:
+				  nl[0] = bit;
+				  nl[1] = ' ';
+				  nl[2] = '\0';
+				  HAL_UART_Transmit_DMA(&huart3, nl, 2);
+				  break;
+*/
+			  default:
+				  HAL_UART_Transmit_DMA(&huart3, &bit, 1);
+				  break;
+			  }
+		  }
 	  }
   }
   /* USER CODE END Callback 1 */
