@@ -122,12 +122,11 @@ BaseType_t prvThrottleCommand( char *pcWriteBuffer,
     if(packet != NULL) {
         // Update packet with cab, speed and direction.
     	// Critical section. The packet could be the actual pump packet.
-    	//taskENTER_CRITICAL();
-    	UBaseType_t water_mark = uxTaskGetStackHighWaterMark(NULL);
+    	taskENTER_CRITICAL();
+    	//UBaseType_t water_mark = uxTaskGetStackHighWaterMark(NULL);
     	DCC_Packet_set_address(packet, cab);
     	DCC_Packet_set_speed(packet, spd, dir);
-    	water_mark++;
-    	//taskEXIT_CRITICAL();
+    	taskEXIT_CRITICAL();
 		// Register[reg] == NULL && packet != NULL ==> No Register, packet is "new"
 		if(Register[reg] == NULL) {
 			osStatus status = osMessageQueuePut(dccMainPacketQueueHandle, (void *) packet, 0U, CLI_DEFAULT_WAIT);
@@ -141,7 +140,7 @@ BaseType_t prvThrottleCommand( char *pcWriteBuffer,
 			}
 		}
 		// if we are here, everything is ok (i.e. Register[reg] != NULL && packet != NULL
-		snprintf(pcWriteBuffer, xWriteBufferLen, "<T %d %d %d>\r\n\r\n", cab, spd, dir);
+		snprintf(pcWriteBuffer, xWriteBufferLen, "<T %d %d %d> == %x %x %x\r\n\r\n", cab, spd, dir, packet->address, packet->data[0], packet->crc);
     }
     // Register[reg] == NULL && packet == NULL ==> No Register and No packet: ignore
 	return pdFALSE;

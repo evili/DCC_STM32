@@ -20,7 +20,7 @@ extern "C" {
 // == 1/(2*58)*1000000
 #define DCC_ONE_BIT_FREQ  (8621u)
 
-#define DCC_PACKET_PREAMBLE_LEN             (16)
+#define DCC_PACKET_PREAMBLE_LEN             (15)
 #define DCC_PACKET_ADDRESS_START_BIT_LEN     (1)
 #define DCC_PACKET_ADDRES_LEN                (8)
 #define DCC_PACKET_DATA_START_BIT_LEN        (1)
@@ -29,7 +29,7 @@ extern "C" {
 #define DCC_PACKET_CRC_LEN                   (8)
 #define DCC_PACKET_END_BIT_LEN               (1)
 
-#define DCC_ADDRESS_MAX                 (16127u) // == 0x3EFF == 0011 1110 1111 1111, the first (high) packet address byte
+#define DCC_ADDRESS_MAX                 (10239u) // == 0x3EFF == 0011 1110 1111 1111, the first (high) packet address byte
                                                  // begins with '11' and can not be all '1' because this will clash with broadcast.
 #define DCC_SHORT_ADDRESS_MAX             (127u)
 #define DCC_BROADCAST_ADDRESS			  (255u)
@@ -109,11 +109,11 @@ typedef struct DCC_Packet_Pump {
     uint8_t data_count;
     osMessageQId queue;
     osPoolId pool;
-    DCC_Packet *packet;
+    DCC_Packet volatile *packet;
 } DCC_Packet_Pump;
 
 osStatus DCC_Packet_Pump_init(DCC_Packet_Pump *pump, osMessageQId mq_id);
-unsigned long DCC_Packet_Pump_next(DCC_Packet_Pump *pump);
+unsigned long DCC_Packet_Pump_next(volatile DCC_Packet_Pump *pump);
 
 // void dcc_pretty_print(DCC_Packet packet, const char *string);
 

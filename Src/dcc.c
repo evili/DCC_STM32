@@ -29,6 +29,9 @@ void DCC_Packet_set_address(DCC_Packet *p, uint16_t addr) {
 		  if(p->address > DCC_SHORT_ADDRESS_MAX) {
 			  p->address |= 0xC000u; // 0b11000000
 		  }
+		  else {
+			  p->address >> 8;
+		  }
 	  }
   }
   DCC_Packet_adjust_crc(p);
@@ -79,7 +82,7 @@ osStatus DCC_Packet_Pump_init(DCC_Packet_Pump *pump, osMessageQId mq_id) {
   return ost;
 }
 
-unsigned long DCC_Packet_Pump_next(DCC_Packet_Pump *pump) {
+unsigned long DCC_Packet_Pump_next(volatile DCC_Packet_Pump *pump) {
   static unsigned long emit = DCC_ZERO;
 //
 // Debug Signal:
@@ -96,6 +99,7 @@ unsigned long DCC_Packet_Pump_next(DCC_Packet_Pump *pump) {
   emit = (emit == DCC_ONE) ? DCC_ZERO : DCC_ONE;
 #else
   osStatus_t status;
+  uint32_t qcount;
   switch (pump->status) {
     case DCC_PACKET_PREAMBLE:
       emit = DCC_ONE;
@@ -160,7 +164,7 @@ unsigned long DCC_Packet_Pump_next(DCC_Packet_Pump *pump) {
       pump->bit = 0;
       break;
     case DCC_PACKET_CRC:
-      emit = ((pump->packet->crc >> (pump->bit)) & (0x01)) ? DCC_ONE : DCC_ZERO;
+      emit = ((pump->packet->crc << (pump->bit)) & (0x80u)) ? DCC_ONE : DCC_ZERO;
       pump->bit++;
       if (pump->bit >= DCC_PACKET_CRC_LEN) {
         pump->status = DCC_PACKET_END;

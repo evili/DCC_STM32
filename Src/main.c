@@ -233,7 +233,7 @@ volatile unsigned long ul = 0;
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
   /* USER CODE BEGIN Callback 0 */
-
+  volatile static uint32_t nfirst = 1050;
   /* USER CODE END Callback 0 */
   if (htim->Instance == TIM7) {
     HAL_IncTick();
@@ -246,10 +246,11 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 		  HAL_TIM_Base_Stop_IT(&htim6);
 		  HAL_GPIO_WritePin(LED_Red_GPIO_Port, LED_Red_Pin, GPIO_PIN_RESET);
 		  button_debounce = 1;
+		  nfirst = 1050;
 	  }
   }
 
-  volatile static uint32_t nfirst = 1050;
+
   char bit = '0';
   char nl[] = "0\n\n";
   if (htim->Instance == DCC_TIMER_MAIN_INSTANCE) {

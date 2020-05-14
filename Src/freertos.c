@@ -243,6 +243,23 @@ void StartDefaultTask(void *argument)
 void StartDccTask(void *argument)
 {
   /* USER CODE BEGIN StartDccTask */
+
+	DCC_Packet *send;
+	DCC_Packet *receive;
+	send = pvPortMalloc(sizeof(DCC_Packet));
+
+	send->address = 0x5555u;
+
+	osStatus status = osMessageQueuePut(dccMainPacketQueueHandle, (void *) send, 0L, 0L);
+	if(status==osOK) {
+		printf("%s\n", "OK");
+	}
+
+	status = osMessageQueueGet(dccMainPacketQueueHandle, receive, 0L, 0L);
+	if(status==osOK) {
+		printf("%s\n", "OK");
+	}
+
 	// printf("\nAllocating Main DCC Pump: %s\n", "OK");
 	main_pump = pvPortMalloc(sizeof(DCC_Packet_Pump));
 	if (NULL == main_pump) {
