@@ -7,6 +7,7 @@
 #endif
 
 const DCC_Packet DCC_Idle_Packet = DCC_PACKET_IDLE;
+Rooster_t Rooster;
 
 void DCC_Packet_adjust_crc(DCC_Packet *p) {
   p->crc = p->address_high;
@@ -182,12 +183,12 @@ unsigned long DCC_Packet_Pump_next(volatile DCC_Packet_Pump *pump) {
       }
       else {
     	// printf("%s\n", "Returning packet to queue");
-        status = osMessageQueuePut(pump->queue, (void *) pump->packet, 0U, 0U);
+        status = osMessageQueuePut(pump->queue, pump->packet, 0U, 0U);
         // if(status != osOK)
       	//  DCC_ERROR(status, "Can't put on queue.");
       }
       // printf("%s\n","Getting new packet.");
-      status = osMessageQueueGet(pump->queue, (void *) pump->packet, 0U, 0U);
+      status = osMessageQueueGet(pump->queue, pump->packet, 0U, 0U);
       // if(status != osOK) {
       //  if (osErrorResource == status)
       //	  DCC_ERROR(status, "Nothing to get from queue.");

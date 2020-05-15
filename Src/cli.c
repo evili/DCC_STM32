@@ -9,13 +9,6 @@
 extern osMessageQueueId_t dccMainPacketQueueHandle;
 extern osMessageQueueId_t dccProgPacketQueueHandle;
 
-typedef struct Rooster_s {
-	BaseType_t allocated[DCC_QUEUE_LEN];
-	DCC_Packet packet[DCC_QUEUE_LEN];
-} Rooster_t;
-
-Rooster_t Rooster;
-
 /**
 Command list from DccPlusPlus:
 
@@ -122,7 +115,7 @@ BaseType_t prvThrottleCommand( char *pcWriteBuffer,
 		if(Rooster.allocated[reg] == pdFALSE)
 		{
 			DCC_Packet *packet = &Rooster.packet[reg];
-			osStatus status = osMessageQueuePut(dccMainPacketQueueHandle, (void *) packet, 0U, CLI_DEFAULT_WAIT);
+			osStatus status = osMessageQueuePut(dccMainPacketQueueHandle, packet, 0U, CLI_DEFAULT_WAIT);
 			if(status == osOK) {
 				Rooster.allocated[reg] = pdTRUE;
 			}

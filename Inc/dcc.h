@@ -119,6 +119,12 @@ osStatus DCC_Packet_Pump_init(DCC_Packet_Pump *pump, osMessageQId mq_id);
 unsigned long DCC_Packet_Pump_next(volatile DCC_Packet_Pump *pump);
 
 // void dcc_pretty_print(DCC_Packet packet, const char *string);
+typedef struct Rooster_s {
+	BaseType_t allocated[DCC_QUEUE_LEN];
+	DCC_Packet packet[DCC_QUEUE_LEN];
+} Rooster_t;
+
+extern Rooster_t Rooster;
 
 #ifdef __cplusplus
 }
