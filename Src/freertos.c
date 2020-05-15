@@ -77,8 +77,8 @@
 volatile uint32_t nfirst = 1050;
 volatile uint8_t button_debounce = 1;
 volatile uint8_t dcc_task_started = 0;
-volatile DCC_Packet_Pump main_pump;
-volatile DCC_Packet_Pump prog_pump;
+DCC_Packet_Pump main_pump;
+DCC_Packet_Pump prog_pump;
 
 //volatile uint32_t tim1_last_cnt;
 //volatile uint32_t tim1_last_arr;
@@ -103,7 +103,7 @@ osThreadId_t commandTaskHandle;
 const osThreadAttr_t commandTask_attributes = {
   .name = "commandTask",
   .priority = (osPriority_t) osPriorityLow,
-  .stack_size = 512 * 4
+  .stack_size = 256 * 4
 };
 /* Definitions for dccMainPacketQueue */
 osMessageQueueId_t dccMainPacketQueueHandle;
@@ -172,13 +172,13 @@ void MX_FREERTOS_Init(void) {
 
   /* Create the queue(s) */
   /* creation of dccMainPacketQueue */
-  dccMainPacketQueueHandle = osMessageQueueNew (25, sizeof(DCC_Packet *), &dccMainPacketQueue_attributes);
+  dccMainPacketQueueHandle = osMessageQueueNew (25, sizeof(uint32_t), &dccMainPacketQueue_attributes);
 
   /* creation of commandQueue */
   commandQueueHandle = osMessageQueueNew (72, sizeof(char *), &commandQueue_attributes);
 
   /* creation of dccProgPacketQueue */
-  dccProgPacketQueueHandle = osMessageQueueNew (3, sizeof(DCC_Packet *), &dccProgPacketQueue_attributes);
+  dccProgPacketQueueHandle = osMessageQueueNew (3, sizeof(uint32_t), &dccProgPacketQueue_attributes);
 
   /* USER CODE BEGIN RTOS_QUEUES */
   /* add queues, ... */

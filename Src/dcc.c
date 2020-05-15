@@ -1,6 +1,8 @@
 #include "dcc.h"
 #include "cmsis_os.h"
 // #include "printf-stdarg.h"
+#include "FreeRTOS.h"
+#include "queue.h"
 
 #ifndef NULL
 #define NULL 0
@@ -188,7 +190,15 @@ unsigned long DCC_Packet_Pump_next(volatile DCC_Packet_Pump *pump) {
       	//  DCC_ERROR(status, "Can't put on queue.");
       }
       // printf("%s\n","Getting new packet.");
-      status = osMessageQueueGet(pump->queue, pump->packet, 0U, 0U);
+      //uint32_t value;
+      //status = osMessageQueueGet(pump->queue, &value, 0U, 0U);
+      // Direct call to xQueueReceiveFromISR since osMessageQueueGet gives some problems
+      BaseType_t yield = pdFALSE;
+      QueueHandle_t hQueue = (QueueHandle_t) (pump->queue);
+      BaseType_t result = xQueueReceiveFromISR (hQueue, &pump->packet, &yield);
+      if(result==pdFALSE) {
+    	  HAL_GPIO_TogglePin(LED_Red_GPIO_Port, LED_Red_Pin);
+      }
       // if(status != osOK) {
       //  if (osErrorResource == status)
       //	  DCC_ERROR(status, "Nothing to get from queue.");

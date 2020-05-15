@@ -114,7 +114,7 @@ BaseType_t prvThrottleCommand( char *pcWriteBuffer,
 
 		if(Rooster.allocated[reg] == pdFALSE)
 		{
-			DCC_Packet *packet = &Rooster.packet[reg];
+			DCC_Packet *packet = &(Rooster.packet[reg]);
 			osStatus status = osMessageQueuePut(dccMainPacketQueueHandle, packet, 0U, CLI_DEFAULT_WAIT);
 			if(status == osOK) {
 				Rooster.allocated[reg] = pdTRUE;
@@ -149,7 +149,7 @@ BaseType_t prvFunctionCommand( char *pcWriteBuffer,
     *packet = DCC_PACKET_CMD;
     packet->data[0] = fbyte;
     DCC_Packet_set_address(packet, cab);
-    osStatus status = osMessageQueuePut(dccMainPacketQueueHandle, (void *) packet, 0U, CLI_DEFAULT_WAIT);
+    osStatus status = osMessageQueuePut(dccMainPacketQueueHandle, packet, 0U, CLI_DEFAULT_WAIT);
 	if(status != osOK) {
 		vPortFree(packet);
 		snprintf(pcWriteBuffer, xWriteBufferLen, "ERROR: Packet queue problem %d\r\n\r\n", (int) status);
