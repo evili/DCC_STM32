@@ -6,6 +6,8 @@
 #define NULL 0
 #endif
 
+const DCC_Packet DCC_Idle_Packet = DCC_PACKET_IDLE;
+
 void DCC_Packet_adjust_crc(DCC_Packet *p) {
   p->crc = p->address_high;
   if (p->address_high != DCC_BROADCAST_ADDRESS ) {
@@ -66,19 +68,12 @@ void DCC_Packet_set_speed_28(DCC_Packet *p, uint8_t speed, uint8_t dir) {
 }
 
 osStatus DCC_Packet_Pump_init(DCC_Packet_Pump *pump, osMessageQId mq_id) {
-  osStatus ost = osErrorNoMemory;
+  osStatus ost = osOK;
   pump->status = DCC_PACKET_PREAMBLE;
   pump->bit = 0;
   pump->data_count = 0;
   pump->queue = mq_id;
-  pump->packet = (DCC_Packet *) pvPortMalloc(sizeof(DCC_Packet));
-  if(NULL != pump->packet) {
-	  ost = osOK;
-	  *pump->packet = DCC_PACKET_IDLE;
-	  //printf("\nFirst packet OK: %u\n", ost);
-  }
-//  if(ost != osOK)
-//	  printf("\nERROR: No memory: %u\n", ost);
+  pump->packet = &DCC_Idle_Packet;
   return ost;
 }
 

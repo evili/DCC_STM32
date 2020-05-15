@@ -103,13 +103,16 @@ void DCC_Packet_set_speed(DCC_Packet *p, uint8_t speed, uint8_t direction);
 #define DCC_PACKET_RESET (DCC_Packet) {.data_len = 1, .count =  DCC_PACKET_DEFAULT_REPEAT, .address = 0x0000, .data = {0x00, 0x00, 0x00, 0x00, 0x00}, .crc = 0x00}
 #define DCC_PACKET_STOP  (DCC_Packet) {.data_len = 1, .count =  DCC_PACKET_DEFAULT_REPEAT, .address = 0x0000, .data = {0x41, 0x00, 0x00, 0x00, 0x00}, .crc = 0x41}
 #define DCC_PACKET_CMD   (DCC_Packet) {.data_len = 1, .count =  DCC_PACKET_DEFAULT_REPEAT, .address = 0x0000, .data = {0x00, 0x00, 0x00, 0x00, 0x00}, .crc = 0x00}
+
+extern const DCC_Packet DCC_Idle_Packet;
+
 typedef struct DCC_Packet_Pump {
     DCC_Packet_State status;
     uint8_t bit;
     uint8_t data_count;
     osMessageQId queue;
     osPoolId pool;
-    DCC_Packet volatile *packet;
+    DCC_Packet * volatile packet;
 } DCC_Packet_Pump;
 
 osStatus DCC_Packet_Pump_init(DCC_Packet_Pump *pump, osMessageQId mq_id);

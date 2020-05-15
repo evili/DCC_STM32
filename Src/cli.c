@@ -9,8 +9,12 @@
 extern osMessageQueueId_t dccMainPacketQueueHandle;
 extern osMessageQueueId_t dccProgPacketQueueHandle;
 
+typedef struct Rooster_s {
+	BaseType_t allocated[DCC_QUEUE_LEN];
+	DCC_Packet packet[DCC_QUEUE_LEN];
+} Rooster_t;
 
-DCC_Packet *Register[DCC_QUEUE_LEN];
+Rooster_t Rooster;
 
 /**
 Command list from DccPlusPlus:
@@ -87,7 +91,6 @@ BaseType_t prvThrottleCommand( char *pcWriteBuffer,
 		size_t xWriteBufferLen,
 		const char *pcCommandString )
 {
-	DCC_Packet *packet = NULL;
 	// Get parameters
     unsigned int reg = atol(FreeRTOS_CLIGetParameter(pcCommandString, 1, NULL));
     unsigned int cab = atol(FreeRTOS_CLIGetParameter(pcCommandString, 2, NULL));
@@ -99,49 +102,39 @@ BaseType_t prvThrottleCommand( char *pcWriteBuffer,
     spd = (spd > 126)             ? 126               : spd;
     dir = (dir)                   ? 1                 : 0;
     // Register allocated?
-    if (Register[reg] == NULL)
+    if (Rooster.allocated[reg] == pdFALSE)
     {
-    	// Allocate DCC Packet
-    	packet = (DCC_Packet *) pvPortMalloc(sizeof(DCC_Packet));
-    	if(packet != NULL)
-    	{
-    		// Set IDLE packet
-    		*packet = DCC_PACKET_IDLE;
-    	}
-    	else
-    	{
-    		// No memory
-    		snprintf(pcWriteBuffer, xWriteBufferLen, "ERROR: No memory for packet\r\n\r\n");
-    	}
+    	// Set IDLE packet
+    	Rooster.packet[reg] = DCC_PACKET_IDLE;
     }
 
-    // Register[reg] != NULL && packet == NULL ==> Register exists, packet is "old"
-    if(Register[reg] != NULL)
-    	packet = Register[reg];
-
-    if(packet != NULL) {
         // Update packet with cab, speed and direction.
     	// Critical section. The packet could be the actual pump packet.
     	taskENTER_CRITICAL();
     	//UBaseType_t water_mark = uxTaskGetStackHighWaterMark(NULL);
-    	DCC_Packet_set_address(packet, cab);
-    	DCC_Packet_set_speed(packet, spd, dir);
+    	DCC_Packet_set_address(&Rooster.packet[reg], cab);
+    	taskEXIT_CRITICAL();
+    	taskENTER_CRITICAL();
+    	DCC_Packet_set_speed(&Rooster.packet[reg], spd, dir);
     	taskEXIT_CRITICAL();
 		// Register[reg] == NULL && packet != NULL ==> No Register, packet is "new"
-		if(Register[reg] == NULL) {
+
+		if(Rooster.allocated[reg] == pdFALSE)
+		{
+			DCC_Packet *packet = &Rooster.packet[reg];
 			osStatus status = osMessageQueuePut(dccMainPacketQueueHandle, (void *) packet, 0U, CLI_DEFAULT_WAIT);
-			if(status != osOK) {
-				vPortFree(packet);
+			if(status == osOK) {
+				Rooster.allocated[reg] = pdTRUE;
+			}
+			else {
 				snprintf(pcWriteBuffer, xWriteBufferLen, "ERROR: Packet queue problem %d\r\n\r\n", (int) status);
 				return pdFALSE;
 			}
-			else {
-				Register[reg] = packet;
-			}
 		}
 		// if we are here, everything is ok (i.e. Register[reg] != NULL && packet != NULL
-		snprintf(pcWriteBuffer, xWriteBufferLen, "<T %d %d %d> == %x %x %x\r\n\r\n", cab, spd, dir, packet->address, packet->data[0], packet->crc);
-    }
+		snprintf(pcWriteBuffer, xWriteBufferLen, "<T %d %d %d> == %x %x %x\r\n\r\n",
+				cab, spd, dir, Rooster.packet[reg].address, Rooster.packet[reg].data[0], Rooster.packet[reg].crc);
+
     // Register[reg] == NULL && packet == NULL ==> No Register and No packet: ignore
 	return pdFALSE;
 }

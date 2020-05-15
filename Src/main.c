@@ -52,10 +52,11 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
+extern volatile uint32_t nfirst;
 extern volatile uint8_t button_debounce;
 extern volatile uint8_t dcc_task_started;
-extern volatile DCC_Packet_Pump *main_pump;
-extern volatile DCC_Packet_Pump *prog_pump;
+extern DCC_Packet_Pump main_pump;
+extern DCC_Packet_Pump prog_pump;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -233,7 +234,7 @@ volatile unsigned long ul = 0;
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
   /* USER CODE BEGIN Callback 0 */
-  volatile static uint32_t nfirst = 1050;
+
   /* USER CODE END Callback 0 */
   if (htim->Instance == TIM7) {
     HAL_IncTick();
@@ -251,47 +252,55 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
   }
 
 
+/*
   char bit = '0';
   char nl[] = "0\n\n";
-  if (htim->Instance == DCC_TIMER_MAIN_INSTANCE) {
-	  if(dcc_task_started) {
-		  if(nfirst >0)
-		  {
-			  nfirst--;
-			  if(DCC_ZERO_ARR == DCC_TIMER_MAIN_INSTANCE->ARR) {
-				  bit = '0';
-			  }
-			  else if(DCC_ONE_ARR == DCC_TIMER_MAIN_INSTANCE->ARR) {
-				  bit = '1';
-			  }
-			  else {
-				  bit = '*';
-			  }
-			  switch(main_pump->status)
-			  {
-			  case DCC_PACKET_END:
-				  nl[0] = bit;
-				  nl[1] = '\n';
-				  HAL_UART_Transmit_DMA(&huart3, nl, 2);
-				  break;
-/*
- 			  case DCC_PACKET_ADDRESS_START:
-			  case DCC_PACKET_ADDRESS_LOW_START:
-			  case DCC_PACKET_DATA_START:
-			  case DCC_PACKET_CRC_START:
-				  nl[0] = bit;
-				  nl[1] = ' ';
-				  nl[2] = '\0';
-				  HAL_UART_Transmit_DMA(&huart3, nl, 2);
-				  break;
-*/
-			  default:
-				  HAL_UART_Transmit_DMA(&huart3, &bit, 1);
-				  break;
-			  }
+  uint32_t arr;
+  if ((htim->Instance == DCC_TIMER_MAIN_INSTANCE) && (nfirst >0) && dcc_task_started) {
+	  arr = DCC_TIMER_MAIN_INSTANCE->ARR;
+	  nfirst--;
+	  if(DCC_ZERO_ARR == arr) {
+		  bit = '0';
+	  }
+	  else if(DCC_ONE_ARR == arr) {
+		  bit = '1';
+	  }
+	  else {
+		  bit = '*';
+	  }
+	  switch(main_pump.status)
+	  {
+	  case DCC_PACKET_PREAMBLE:
+		  if(main_pump.bit == 0) {
+			  nl[0] = '-';
+			  nl[1] = bit;
+			  nl[2] = '\n';
+			  HAL_UART_Transmit_DMA(&huart3, nl, 3);
 		  }
+		  else {
+			  HAL_UART_Transmit_DMA(&huart3, &bit, 1);
+		  }
+		  break;
+	  case DCC_PACKET_ADDRESS:
+	  case DCC_PACKET_ADDRESS_LOW:
+	  case DCC_PACKET_DATA:
+	  case DCC_PACKET_CRC:
+		  if(main_pump.bit == 0) {
+			  nl[0] = '-';
+			  nl[1] = bit;
+			  nl[2] = '-';
+			  HAL_UART_Transmit_DMA(&huart3, nl, 3);
+		  }
+		  else{
+			  HAL_UART_Transmit_DMA(&huart3, &bit, 1);
+		  }
+		  break;
+	  default:
+		  HAL_UART_Transmit_DMA(&huart3, &bit, 1);
+		  break;
 	  }
   }
+*/
   /* USER CODE END Callback 1 */
 }
 

@@ -67,17 +67,18 @@
 	    DCC_TIMER_ ##track## _INSTANCE->EGR &= TIM_EGR_UG; /* Trigger update (preload loaded) */ \
 	    DCC_TIMER_ ##track## _INSTANCE->EGR &= TIM_EGR_UG; \
 	    DCC_TIMER_ ##track## _INSTANCE->SR = 0ul; /* Clear all Interrupts */ \
-	    DCC_TIMER_ ##track## _INSTANCE->DIER = TIM_DIER_CC1IE | TIM_DIER_UIE; /* Enable conmutation Interrupt ONLY */ \
+	    DCC_TIMER_ ##track## _INSTANCE->DIER = TIM_DIER_CC1IE; /* Enable conmutation Interrupt ONLY */ \
 	    DCC_TIMER_ ##track## _INSTANCE->CR1 |= TIM_CR1_CEN; /* Enable timer */
 #endif
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN Variables */
+volatile uint32_t nfirst = 1050;
 volatile uint8_t button_debounce = 1;
 volatile uint8_t dcc_task_started = 0;
-volatile DCC_Packet_Pump *main_pump;
-volatile DCC_Packet_Pump *prog_pump;
+volatile DCC_Packet_Pump main_pump;
+volatile DCC_Packet_Pump prog_pump;
 
 //volatile uint32_t tim1_last_cnt;
 //volatile uint32_t tim1_last_arr;
@@ -243,48 +244,8 @@ void StartDefaultTask(void *argument)
 void StartDccTask(void *argument)
 {
   /* USER CODE BEGIN StartDccTask */
-
-	DCC_Packet *send;
-	DCC_Packet *receive;
-	send = pvPortMalloc(sizeof(DCC_Packet));
-
-	send->address = 0x5555u;
-
-	osStatus status = osMessageQueuePut(dccMainPacketQueueHandle, (void *) send, 0L, 0L);
-	if(status==osOK) {
-		printf("%s\n", "OK");
-	}
-
-	status = osMessageQueueGet(dccMainPacketQueueHandle, receive, 0L, 0L);
-	if(status==osOK) {
-		printf("%s\n", "OK");
-	}
-
-	// printf("\nAllocating Main DCC Pump: %s\n", "OK");
-	main_pump = pvPortMalloc(sizeof(DCC_Packet_Pump));
-	if (NULL == main_pump) {
-		// printf("\nDCC Main Pump allocation: %s\n", "FAILED");
-		osDelay(1000);
-		osThreadTerminate(osThreadGetId());
-	}
-	// printf("\nInitializing DCC Pump. %s\n", "OK");
-	DCC_Packet_Pump_init(main_pump, dccMainPacketQueueHandle);
-
-	prog_pump = pvPortMalloc(sizeof(DCC_Packet_Pump));
-	if (NULL == prog_pump) {
-		// printf("\nDCC Prog Pump allocation: %s\n", "FAILED");
-		osDelay(1000);
-		osThreadTerminate(osThreadGetId());
-	}
-	// printf("\nInitializing DCC Pump. %s\n", "OK");
-	DCC_Packet_Pump_init(prog_pump, dccProgPacketQueueHandle);
-
-
-	//	printf("\nIDLE PACKET: {%u, %u, {%u}, %u : %d}\n", pump->packet->data_len,
-	//			pump->packet->address, pump->packet->data[0], pump->packet->crc,
-	//			pump->packet->count);
-	// Freeze TIM1 on debug
-	// printf("\nPreparing TIMER%d for DCC.\n", 1);
+	DCC_Packet_Pump_init(&main_pump, dccMainPacketQueueHandle);
+	DCC_Packet_Pump_init(&prog_pump, dccProgPacketQueueHandle);
 
 	// Disable timer on debug
 	__HAL_DBGMCU_FREEZE_TIM2();
@@ -328,7 +289,8 @@ void StartCommandTask(void *argument)
 	vRegisterCLICommands();
 	vEnableUART(&huart3);
 	snprintf((char *) cOutputString, configCOMMAND_INT_MAX_OUTPUT_SIZE,
-			"<iDCC++ BASE STATION FOR ARDUINO STM32F7 X-N-IHM04A1 %s / %s>\r\n", __TIME__, __DATE__);
+			"<iDCC++ BASE STATION FOR ARDUINO STM32F7 %s %s / %s>\r\n",
+			MOTOR_SHIELD_NAME, __TIME__, __DATE__);
 	HAL_UART_Transmit_DMA(&huart3, cOutputString,
 			strnlen((char *)cOutputString, configCOMMAND_INT_MAX_OUTPUT_SIZE));
 
@@ -404,9 +366,10 @@ void vEnableUART(UART_HandleTypeDef *huart){
 }
 
 void HAL_TIM_PWM_PulseFinishedCallback(TIM_HandleTypeDef *htim) {
+
 	if (htim->Instance == DCC_TIMER_MAIN_INSTANCE) {
 		if (htim->Channel == DCC_TIMER_MAIN_ACTIVE_CHANNEL_K) {
-			if (DCC_Packet_Pump_next(main_pump) == DCC_ZERO) {
+			if (DCC_Packet_Pump_next(&main_pump) == DCC_ZERO) {
 				DCC_TIMER_MAIN_INSTANCE->ARR  = DCC_ZERO_ARR;
 				DCC_TIMER_MAIN_CCR_K = DCC_ZERO_CCR;
 #ifdef DCC_TIMER_MAIN_CCR_L
@@ -415,6 +378,7 @@ void HAL_TIM_PWM_PulseFinishedCallback(TIM_HandleTypeDef *htim) {
 			} else {
 				DCC_TIMER_MAIN_INSTANCE->ARR  = DCC_ONE_ARR;
 				DCC_TIMER_MAIN_CCR_K = DCC_ONE_CCR;
+
 #ifdef DCC_TIMER_MAIN_CCR_L
 				DCC_TIMER_MAIN_CCR_L = DCC_ONE_CCR;
 #endif
@@ -423,7 +387,7 @@ void HAL_TIM_PWM_PulseFinishedCallback(TIM_HandleTypeDef *htim) {
 	}
 	else if (htim->Instance == DCC_TIMER_PROG_INSTANCE) {
 		if (htim->Channel == DCC_TIMER_PROG_ACTIVE_CHANNEL_K) {
-			if (DCC_Packet_Pump_next(prog_pump) == DCC_ZERO) {
+			if (DCC_Packet_Pump_next(&prog_pump) == DCC_ZERO) {
 				DCC_TIMER_PROG_INSTANCE->ARR  = DCC_ZERO_ARR;
 				DCC_TIMER_PROG_CCR_K = DCC_ZERO_CCR;
 #ifdef DCC_TIMER_PROG_CCR_L
@@ -439,6 +403,7 @@ void HAL_TIM_PWM_PulseFinishedCallback(TIM_HandleTypeDef *htim) {
 		}
 	}
 }
+
 
 void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart){
 	if(huart->Instance == USART3) {
