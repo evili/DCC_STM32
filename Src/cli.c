@@ -126,11 +126,16 @@ BaseType_t prvThrottleCommand( char *pcWriteBuffer,
 			}
 		}
 		// if we are here, everything is ok (i.e. Register[reg] != NULL && packet != NULL
-		snprintf(pcWriteBuffer, xWriteBufferLen, "<T %d %d %d> == %x %x %x\r\n\r\n",
-				cab, spd, dir, Rooster.packet[reg].address, Rooster.packet[reg].data[0], Rooster.packet[reg].crc);
+		snprintf(pcWriteBuffer, xWriteBufferLen, "<T %d %d %d> == %x %x %x %x\r\n\r\n",
+				cab, spd, dir,
+				Rooster.packet[reg].address,
+				Rooster.packet[reg].data[0],
+				Rooster.packet[reg].data[1],
+				Rooster.packet[reg].crc);
 
     // Register[reg] == NULL && packet == NULL ==> No Register and No packet: ignore
-	return pdFALSE;
+
+		return pdFALSE;
 }
 
 /**

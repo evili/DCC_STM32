@@ -98,7 +98,6 @@ unsigned long DCC_Packet_Pump_next(volatile DCC_Packet_Pump *pump) {
   emit = (emit == DCC_ONE) ? DCC_ZERO : DCC_ONE;
 #else
   osStatus_t status;
-  uint32_t qcount;
   switch (pump->status) {
     case DCC_PACKET_PREAMBLE:
       emit = DCC_ONE;
