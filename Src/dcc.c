@@ -82,6 +82,7 @@ osStatus DCC_Packet_Pump_init(DCC_Packet_Pump *pump, osMessageQId mq_id) {
 
 unsigned long DCC_Packet_Pump_next(volatile DCC_Packet_Pump *pump) {
   static unsigned long emit = DCC_ZERO;
+  uint32_t msg;
 //
 // Debug Signal:
 //  define DCC_PUMP_DEBUG_ZERO to
@@ -185,19 +186,15 @@ unsigned long DCC_Packet_Pump_next(volatile DCC_Packet_Pump *pump) {
       }
       else {
     	// printf("%s\n", "Returning packet to queue");
-        status = osMessageQueuePut(pump->queue, pump->packet, 0U, 0U);
+    	  msg = (uint32_t) pump->packet;
+        status = osMessageQueuePut(pump->queue, &msg, 0U, 0U);
         // if(status != osOK)
       	//  DCC_ERROR(status, "Can't put on queue.");
       }
       // printf("%s\n","Getting new packet.");
-      //uint32_t value;
-      //status = osMessageQueueGet(pump->queue, &value, 0U, 0U);
-      // Direct call to xQueueReceiveFromISR since osMessageQueueGet gives some problems
-      BaseType_t yield = pdFALSE;
-      QueueHandle_t hQueue = (QueueHandle_t) (pump->queue);
-      BaseType_t result = xQueueReceiveFromISR (hQueue, &pump->packet, &yield);
-      if(result==pdFALSE) {
-    	  HAL_GPIO_TogglePin(LED_Red_GPIO_Port, LED_Red_Pin);
+      status = osMessageQueueGet(pump->queue, &msg, 0U, 0U);
+      if(status == osOK) {
+    	  pump->packet = (DCC_Packet *) msg;
       }
       // if(status != osOK) {
       //  if (osErrorResource == status)
