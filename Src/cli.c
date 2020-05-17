@@ -44,7 +44,7 @@ BaseType_t prvPowerOnCommand( char *pcWriteBuffer,
 	 // Disable Channels, then disable counter.
 	 HAL_GPIO_WritePin(ENABLE_MAIN_GPIO_Port, ENABLE_MAIN_Pin, GPIO_PIN_SET);
 	 HAL_GPIO_WritePin(ENABLE_PROG_GPIO_Port, ENABLE_PROG_Pin, GPIO_PIN_SET);
- 	snprintf(pcWriteBuffer, xWriteBufferLen, "<p1>\r\n\r\n");
+ 	snprintf(pcWriteBuffer, xWriteBufferLen, "<p1>");
 	return pdFALSE;
 }
 
@@ -58,7 +58,7 @@ BaseType_t prvPowerOffCommand( char *pcWriteBuffer,
 	 // Disable Channels, then disable counter.
 	 HAL_GPIO_WritePin(ENABLE_MAIN_GPIO_Port, ENABLE_MAIN_Pin, GPIO_PIN_RESET);
 	 HAL_GPIO_WritePin(ENABLE_PROG_GPIO_Port, ENABLE_PROG_Pin, GPIO_PIN_RESET);
- 	snprintf(pcWriteBuffer, xWriteBufferLen, "<p0>\r\n\r\n");
+ 	snprintf(pcWriteBuffer, xWriteBufferLen, "<p0>");
 	return pdFALSE;
 }
 
@@ -73,7 +73,7 @@ BaseType_t prvPowerToggleCommand( char *pcWriteBuffer,
 	HAL_GPIO_TogglePin(ENABLE_MAIN_GPIO_Port, ENABLE_MAIN_Pin);
 	HAL_GPIO_TogglePin(ENABLE_PROG_GPIO_Port, ENABLE_PROG_Pin);
 	uint8_t pin_status = ((ENABLE_MAIN_GPIO_Port->ODR & ENABLE_MAIN_Pin) != 0X00u);
- 	snprintf(pcWriteBuffer, xWriteBufferLen,"<p%u>\r\n\r\n", pin_status);
+ 	snprintf(pcWriteBuffer, xWriteBufferLen,"<p%u>", pin_status);
 	return pdFALSE;
 }
 
@@ -126,12 +126,7 @@ BaseType_t prvThrottleCommand( char *pcWriteBuffer,
 			}
 		}
 		// if we are here, everything is ok (i.e. Register[reg] != NULL && packet != NULL
-		snprintf(pcWriteBuffer, xWriteBufferLen, "<T %d %d %d> == %x %x %x %x\r\n\r\n",
-				cab, spd, dir,
-				Rooster.packet[reg].address,
-				Rooster.packet[reg].data[0],
-				Rooster.packet[reg].data[1],
-				Rooster.packet[reg].crc);
+		snprintf(pcWriteBuffer, xWriteBufferLen, "<T %d %d %d>", cab, spd, dir);
 
     // Register[reg] == NULL && packet == NULL ==> No Register and No packet: ignore
 
@@ -162,11 +157,85 @@ BaseType_t prvFunctionCommand( char *pcWriteBuffer,
 		snprintf(pcWriteBuffer, xWriteBufferLen, "ERROR: Packet queue problem %d\r\n\r\n", (int) status);
 	}
 	else {
-		snprintf(pcWriteBuffer, xWriteBufferLen, "\r\n");
+		pcWriteBuffer[0] = '\0';
 	}
 	return pdFALSE;
 }
 
+/**
+ *  Status Command: minimal response to make other soft recognize us as true DCC++ Station
+ */
+BaseType_t prvStatusCommand( char *pcWriteBuffer,
+		size_t xWriteBufferLen,
+		const char *pcCommandString )
+{
+	static BaseType_t phase = 0;
+	static BaseType_t reg = 0;
+	BaseType_t status = pdFALSE;
+	uint8_t pwr, spd, dir;
+	uint16_t cab;
+	switch(phase) {
+	case 0:
+		pwr = ((ENABLE_MAIN_GPIO_Port->ODR & ENABLE_MAIN_Pin) != 0X00u);
+		snprintf(pcWriteBuffer, xWriteBufferLen,"<p%u>", pwr);
+		status = pdTRUE;
+		phase = 1;
+		break;
+	case 1:
+		if(Rooster.allocated[reg] == pdTRUE)
+		{
+			cab = DCC_Packet_get_address(Rooster.packet[reg]);
+			DCC_Packet_get_speed(Rooster.packet[reg], &spd, &dir);
+			snprintf(pcWriteBuffer, xWriteBufferLen, "<T %d %d %d>",
+					cab, spd, dir);
+		}
+		else
+		{
+			// snprintf(pcWriteBuffer, xWriteBufferLen, "");
+			pcWriteBuffer[0] = '\0';
+		}
+		if(reg<DCC_QUEUE_LEN) {
+			reg++;
+		}
+		else
+		{
+			reg = 0;
+			phase = 2;
+		}
+		status = pdTRUE;
+		break;
+	case 2:
+		snprintf(pcWriteBuffer, xWriteBufferLen, DCCPP_STATION);
+		phase = 3;
+		status = pdTRUE;
+		break;
+	case 3:
+		snprintf(pcWriteBuffer, xWriteBufferLen, "<N SERIAL>");
+		phase = 4;
+		status = pdTRUE;
+		break;
+	default:
+		phase = 0;
+		pcWriteBuffer[0] = '\0';
+		status = pdFALSE;
+		break;
+	}
+	return status;
+}
+
+/**
+ * ReadCurrentCommand
+ */
+BaseType_t prvReadCurrentCommand( char *pcWriteBuffer,
+		size_t xWriteBufferLen,
+		const char *pcCommandString )
+{
+	// TODO: Read the current draw.
+	snprintf(pcWriteBuffer, xWriteBufferLen, "<a 256>");
+	return pdFALSE;
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////
 ///// CLI definitions
 static const CLI_Command_Definition_t xPowerOnCommand =
 {
@@ -269,7 +338,7 @@ static const CLI_Command_Definition_t xReadCurrentCommand =
 {
 		"<c",
 		"<c>:\r\n\tReads current draw from main operations track.\r\n",
-		dummyCommand,
+		prvReadCurrentCommand,
 		0
 };
 
@@ -277,9 +346,10 @@ static const CLI_Command_Definition_t xStatusCommand =
 {
 		"<s",
 		"<s>:\r\n\tReturns status messages, including power state, turnout states, and sketch version.\r\n",
-		dummyCommand,
+		prvStatusCommand,
 		0
 };
+
 
 void vRegisterCLICommands() {
   FreeRTOS_CLIRegisterCommand(&xThrottleCommand);      // 01

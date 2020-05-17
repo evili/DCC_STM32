@@ -10,6 +10,7 @@
 
 const DCC_Packet DCC_Idle_Packet = DCC_PACKET_IDLE;
 Rooster_t Rooster;
+char DCCPP_STATION[DCCPP_STATION_MAX_LEN];
 
 void DCC_Packet_adjust_crc(DCC_Packet *p) {
   p->crc = p->address_high;
@@ -32,14 +33,26 @@ void DCC_Packet_set_address(DCC_Packet *p, uint16_t addr) {
 	  if(addr <= DCC_ADDRESS_MAX) {
 		  p->address = addr;
 		  if(p->address > DCC_SHORT_ADDRESS_MAX) {
-			  p->address |= 0xC000u; // 0b11000000
+			  p->address |= DCC_LONG_ADDRESS_PREFIX; // 0b11000000
 		  }
 		  else {
-			  p->address >> 8;
+			  p->address_high = p->address_low;
+			  p->address_low = 0x00u;
 		  }
 	  }
   }
   DCC_Packet_adjust_crc(p);
+}
+
+uint16_t  DCC_Packet_get_address(DCC_Packet p) {
+	uint16_t addr;
+	if(p.address_low == 0x00) {
+		addr = (uint16_t) p.address_high;
+	}
+	else {
+		addr = p.address & ~DCC_LONG_ADDRESS_PREFIX;
+	}
+	return addr;
 }
 
 void DCC_Packet_set_speed(DCC_Packet *p, uint8_t speed, uint8_t dir) {
@@ -48,6 +61,14 @@ void DCC_Packet_set_speed(DCC_Packet *p, uint8_t speed, uint8_t dir) {
   unsigned char adjust_speed = (speed > 126) ? 126 : speed;
   p->data[1] = ((dir & 0x01) << DCC_PACKET_SPEED_128_DIR_BIT) | adjust_speed;
   DCC_Packet_adjust_crc(p);
+}
+
+void DCC_Packet_get_speed(DCC_Packet p, uint8_t *speed, uint8_t *dir) {
+  if((p.data_len == 2) && (p.data[0] == DCC_PACKET_SPEED_128))
+  {
+	  *dir   = (p.data[1] &  (0x01 << DCC_PACKET_SPEED_128_DIR_BIT)) ? 1 : 0;
+	  *speed = p.data[1]  & ~(0x01 << DCC_PACKET_SPEED_128_DIR_BIT);
+  }
 }
 
 void DCC_Packet_set_speed_28(DCC_Packet *p, uint8_t speed, uint8_t dir) {
