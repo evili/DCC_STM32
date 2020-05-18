@@ -95,30 +95,30 @@ BaseType_t prvThrottleCommand( char *pcWriteBuffer,
     spd = (spd > 126)             ? 126               : spd;
     dir = (dir)                   ? 1                 : 0;
     // Register allocated?
-    if (Rooster.allocated[reg] == pdFALSE)
+    if (Rooster[reg].allocated == pdFALSE)
     {
     	// Set IDLE packet
-    	Rooster.packet[reg] = DCC_PACKET_IDLE;
+    	Rooster[reg].packet = DCC_PACKET_IDLE;
     }
 
         // Update packet with cab, speed and direction.
     	// Critical section. The packet could be the actual pump packet.
     	taskENTER_CRITICAL();
     	//UBaseType_t water_mark = uxTaskGetStackHighWaterMark(NULL);
-    	DCC_Packet_set_address(&Rooster.packet[reg], cab);
+    	DCC_Packet_set_address(&Rooster[reg].packet, cab);
     	taskEXIT_CRITICAL();
     	taskENTER_CRITICAL();
-    	DCC_Packet_set_speed(&Rooster.packet[reg], spd, dir);
+    	DCC_Packet_set_speed(&Rooster[reg].packet, spd, dir);
     	taskEXIT_CRITICAL();
 		// Register[reg] == NULL && packet != NULL ==> No Register, packet is "new"
 
-		if(Rooster.allocated[reg] == pdFALSE)
+		if(Rooster[reg].allocated == pdFALSE)
 		{
 			// DCC_Packet *packet = &(Rooster.packet[reg]);
-			uint32_t msg = (uint32_t) &(Rooster.packet[reg]);
-			osStatus status = osMessageQueuePut(dccMainPacketQueueHandle, &msg, 0U, CLI_DEFAULT_WAIT);
+			uint32_t msg = (uint32_t) &(Rooster[reg].packet);
+			osStatus status = osMessageQueuePut(dccMainPacketQueueHandle,  &(msg), 0U, CLI_DEFAULT_WAIT);
 			if(status == osOK) {
-				Rooster.allocated[reg] = pdTRUE;
+				Rooster[reg].allocated = pdTRUE;
 			}
 			else {
 				snprintf(pcWriteBuffer, xWriteBufferLen, "ERROR: Packet queue problem %d\r\n\r\n", (int) status);
@@ -127,9 +127,6 @@ BaseType_t prvThrottleCommand( char *pcWriteBuffer,
 		}
 		// if we are here, everything is ok (i.e. Register[reg] != NULL && packet != NULL
 		snprintf(pcWriteBuffer, xWriteBufferLen, "<T %d %d %d>", cab, spd, dir);
-
-    // Register[reg] == NULL && packet == NULL ==> No Register and No packet: ignore
-
 		return pdFALSE;
 }
 
@@ -150,8 +147,8 @@ BaseType_t prvFunctionCommand( char *pcWriteBuffer,
     *packet = DCC_PACKET_CMD;
     packet->data[0] = fbyte;
     DCC_Packet_set_address(packet, cab);
-    uint32_t msg = (uint32_t ) packet;
-    osStatus status = osMessageQueuePut(dccMainPacketQueueHandle, &msg, 0U, CLI_DEFAULT_WAIT);
+    //uint32_t msg = (uint32_t ) packet;
+    osStatus status = osMessageQueuePut(dccMainPacketQueueHandle, &packet, 0U, CLI_DEFAULT_WAIT);
 	if(status != osOK) {
 		vPortFree(packet);
 		snprintf(pcWriteBuffer, xWriteBufferLen, "ERROR: Packet queue problem %d\r\n\r\n", (int) status);
@@ -182,10 +179,10 @@ BaseType_t prvStatusCommand( char *pcWriteBuffer,
 		phase = 1;
 		break;
 	case 1:
-		if(Rooster.allocated[reg] == pdTRUE)
+		if(Rooster[reg].allocated == pdTRUE)
 		{
-			cab = DCC_Packet_get_address(Rooster.packet[reg]);
-			DCC_Packet_get_speed(Rooster.packet[reg], &spd, &dir);
+			cab = DCC_Packet_get_address(Rooster[reg].packet);
+			DCC_Packet_get_speed(Rooster[reg].packet, &spd, &dir);
 			snprintf(pcWriteBuffer, xWriteBufferLen, "<T %d %d %d>",
 					cab, spd, dir);
 		}

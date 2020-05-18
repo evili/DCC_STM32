@@ -104,23 +104,23 @@ typedef struct DCC_Packet_Pump {
     uint8_t bit;
     uint8_t data_count;
     osMessageQId queue;
-    osPoolId pool;
+    osMessageQId discard;
     DCC_Packet * volatile packet;
 } DCC_Packet_Pump;
 
-osStatus DCC_Packet_Pump_init(DCC_Packet_Pump *pump, osMessageQId mq_id);
-unsigned long DCC_Packet_Pump_next(volatile DCC_Packet_Pump *pump);
+osStatus DCC_Packet_Pump_init(DCC_Packet_Pump *pump, osMessageQId mq_id, osMessageQId dq_id);
+unsigned long DCC_Packet_Pump_next(DCC_Packet_Pump *pump);
 
 // void dcc_pretty_print(DCC_Packet packet, const char *string);
 #define DCCPP_STATION_MAX_LEN 120
 extern char DCCPP_STATION[DCCPP_STATION_MAX_LEN];
 
 typedef struct Rooster_s {
-	BaseType_t allocated[DCC_QUEUE_LEN];
-	DCC_Packet packet[DCC_QUEUE_LEN];
+	BaseType_t allocated;
+	DCC_Packet packet;
 } Rooster_t;
 
-extern Rooster_t Rooster;
+extern Rooster_t Rooster[DCC_QUEUE_LEN];
 
 #ifdef __cplusplus
 }

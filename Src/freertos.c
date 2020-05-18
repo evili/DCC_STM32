@@ -120,6 +120,11 @@ osMessageQueueId_t dccProgPacketQueueHandle;
 const osMessageQueueAttr_t dccProgPacketQueue_attributes = {
   .name = "dccProgPacketQueue"
 };
+/* Definitions for dccDiscardQueue */
+osMessageQueueId_t dccDiscardQueueHandle;
+const osMessageQueueAttr_t dccDiscardQueue_attributes = {
+  .name = "dccDiscardQueue"
+};
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN FunctionPrototypes */
@@ -172,13 +177,16 @@ void MX_FREERTOS_Init(void) {
 
   /* Create the queue(s) */
   /* creation of dccMainPacketQueue */
-  dccMainPacketQueueHandle = osMessageQueueNew (25, sizeof(uint32_t), &dccMainPacketQueue_attributes);
+  dccMainPacketQueueHandle = osMessageQueueNew (25, sizeof(DCC_Packet *), &dccMainPacketQueue_attributes);
 
   /* creation of commandQueue */
   commandQueueHandle = osMessageQueueNew (72, sizeof(char *), &commandQueue_attributes);
 
   /* creation of dccProgPacketQueue */
-  dccProgPacketQueueHandle = osMessageQueueNew (3, sizeof(uint32_t), &dccProgPacketQueue_attributes);
+  dccProgPacketQueueHandle = osMessageQueueNew (3, sizeof(DCC_Packet *), &dccProgPacketQueue_attributes);
+
+  /* creation of dccDiscardQueue */
+  dccDiscardQueueHandle = osMessageQueueNew (3, sizeof(DCC_Packet *), &dccDiscardQueue_attributes);
 
   /* USER CODE BEGIN RTOS_QUEUES */
   /* add queues, ... */
@@ -244,8 +252,10 @@ void StartDefaultTask(void *argument)
 void StartDccTask(void *argument)
 {
   /* USER CODE BEGIN StartDccTask */
-	DCC_Packet_Pump_init(&main_pump, dccMainPacketQueueHandle);
-	DCC_Packet_Pump_init(&prog_pump, dccProgPacketQueueHandle);
+	osStatus status;
+	DCC_Packet *discardPacket;
+	DCC_Packet_Pump_init(&main_pump, dccMainPacketQueueHandle, dccDiscardQueueHandle);
+	DCC_Packet_Pump_init(&prog_pump, dccProgPacketQueueHandle, dccDiscardQueueHandle);
 
 	// Disable timer on debug
 	__HAL_DBGMCU_FREEZE_TIM2();
@@ -257,18 +267,12 @@ void StartDccTask(void *argument)
 	SETUP_TIMER(MAIN);
 	SETUP_TIMER(PROG);
 	osDelay(200);
-	// printf("Entering loop for DCC Pump. %s\n", "OK");
 	/* Infinite loop */
 	for (;;) {
-		//		if ((DCC_PACKET_PREAMBLE == pump->status) && (0 == pump->bit)) {
-		//			printf("\n\n%s\n", "PACKET:");
-		//		}
-		//		//printf("STATUS: %u, NBIT: %u, NDATA: %u, ", pump->status, pump->bit, pump->data_count);
-		//		bit = (DCC_ONE_BIT_FREQ == DCC_Packet_Pump_next(pump));
-		//		printf("%u", bit);
-		//printf("%u", (DCC_ONE_BIT_FREQ == bit));
+		status = osMessageQueueGet(dccDiscardQueueHandle, &discardPacket, 0L, 250L);
+		if(status == osOK)
+			vPortFree(discardPacket);
 		HAL_GPIO_TogglePin(LED_Green_GPIO_Port, LED_Green_Pin);
-		osDelay(250);
 	}
   /* USER CODE END StartDccTask */
 }
@@ -289,7 +293,7 @@ void StartCommandTask(void *argument)
 	vRegisterCLICommands();
 	vEnableUART(&huart3);
 	// Save DCC++ Station Name, Motor and Version for Later (see command <s>)
-	snprintf(DCCPP_STATION, DCCPP_STATION_MAX_LEN, "<iDCC++ BASE STATION FOR ARDUINO STM32F7 %s %s / %s>",
+	snprintf(DCCPP_STATION, DCCPP_STATION_MAX_LEN, "<iDCC++ BASE STATION FOR STM32F7 %s %s / %s>",
 			MOTOR_SHIELD_NAME, __TIME__, __DATE__);
 	snprintf((char *) cOutputString, configCOMMAND_INT_MAX_OUTPUT_SIZE,
 			"%s\r\n", DCCPP_STATION);
@@ -328,11 +332,19 @@ void StartCommandTask(void *argument)
 				//}
 				xMoreDataToFollow = FreeRTOS_CLIProcessCommand((char *) cInputString, (char *) cOutputString,
 						configCOMMAND_INT_MAX_OUTPUT_SIZE );
-				HAL_UART_Transmit_DMA(&huart3, cOutputString, strnlen((char *) cOutputString,
-						configCOMMAND_INT_MAX_OUTPUT_SIZE));
-				// Wait for transmission complete
-				while(!(huart3.Instance->ISR &= USART_ISR_TC)){
-					osDelay(10);
+				size_t out_len = strnlen((char *) cOutputString,
+						configCOMMAND_INT_MAX_OUTPUT_SIZE);
+				if(out_len > 0)
+				{
+					HAL_UART_Transmit_DMA(&huart3, cOutputString, out_len);
+					// Wait for transmission complete
+					while(!(huart3.Instance->ISR &= USART_ISR_TC)){
+						osDelay(10);
+					}
+				}
+				else {
+					// Tell MySelf transmit is OK
+					osThreadFlagsSet(commandTaskHandle, COMMAND_FLAG_TRANSMIT_OK);
 				}
 			}
 			break;

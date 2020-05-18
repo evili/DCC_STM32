@@ -9,15 +9,13 @@
 #endif
 
 const DCC_Packet DCC_Idle_Packet = DCC_PACKET_IDLE;
-Rooster_t Rooster;
+Rooster_t Rooster[DCC_QUEUE_LEN];
 char DCCPP_STATION[DCCPP_STATION_MAX_LEN];
 
 void DCC_Packet_adjust_crc(DCC_Packet *p) {
   p->crc = p->address_high;
-  if (p->address_high != DCC_BROADCAST_ADDRESS ) {
-	  if (p->address_high > DCC_SHORT_ADDRESS_MAX) {
+  if ((p->address_high != DCC_BROADCAST_ADDRESS ) && (p->address_high > DCC_SHORT_ADDRESS_MAX)) {
 		  p->crc ^= p->address_low;
-	  }
   }
   for (int i = 0; i < p->data_len; i++) {
 	  p->crc ^= p->data[i];
@@ -91,17 +89,18 @@ void DCC_Packet_set_speed_28(DCC_Packet *p, uint8_t speed, uint8_t dir) {
   DCC_Packet_adjust_crc(p);
 }
 
-osStatus DCC_Packet_Pump_init(DCC_Packet_Pump *pump, osMessageQId mq_id) {
+osStatus DCC_Packet_Pump_init(DCC_Packet_Pump *pump, osMessageQId mq_id, osMessageQId dq_id) {
   osStatus ost = osOK;
   pump->status = DCC_PACKET_PREAMBLE;
   pump->bit = 0;
   pump->data_count = 0;
   pump->queue = mq_id;
+  pump->discard = dq_id;
   pump->packet = &DCC_Idle_Packet;
   return ost;
 }
 
-unsigned long DCC_Packet_Pump_next(volatile DCC_Packet_Pump *pump) {
+unsigned long DCC_Packet_Pump_next(DCC_Packet_Pump *pump) {
   static unsigned long emit = DCC_ZERO;
   uint32_t msg;
 //
@@ -195,27 +194,24 @@ unsigned long DCC_Packet_Pump_next(volatile DCC_Packet_Pump *pump) {
       pump->status = DCC_PACKET_PREAMBLE;
       pump->bit = 0;
       pump->data_count = 0;
-      //printf("\n%s\n", "\nDCC_PACKET_END");
+      // if packet is not permanent (count=-1), decrement remaining repeats.
       if (pump->packet->count > 0) {
         pump->packet->count--;
       }
-      // Grab next packet.
       if (pump->packet->count == 0) {
-    	// printf("%s\n", "Count is zero. Freeing");
-    	vPortFree(pump->packet);
+    	// Discard temporary packet
+    	status = osMessageQueuePut(pump->discard, &(pump->packet), 0U, 0U);
       }
       else {
-    	// printf("%s\n", "Returning packet to queue");
-    	  msg = (uint32_t) pump->packet;
-        status = osMessageQueuePut(pump->queue, &msg, 0U, 0U);
-        // if(status != osOK)
-      	//  DCC_ERROR(status, "Can't put on queue.");
+    	// reQueue active packet
+    	msg = (uint32_t) pump->packet;
+        status = osMessageQueuePut(pump->queue, &(pump->packet), 0U, 0U);
       }
-      // printf("%s\n","Getting new packet.");
-      status = osMessageQueueGet(pump->queue, &msg, 0U, 0U);
-      if(status == osOK) {
-    	  pump->packet = (DCC_Packet *) msg;
-      }
+      // Grab next packet.
+      status = osMessageQueueGet(pump->queue, &(pump->packet), 0U, 0U);
+      //if(status == osOK) {
+      //  pump->packet = (DCC_Packet *) msg;
+      //}
       // if(status != osOK) {
       //  if (osErrorResource == status)
       //	  DCC_ERROR(status, "Nothing to get from queue.");
