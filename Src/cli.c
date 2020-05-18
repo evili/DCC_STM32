@@ -9,9 +9,6 @@
 extern osMessageQueueId_t dccMainPacketQueueHandle;
 extern osMessageQueueId_t dccProgPacketQueueHandle;
 
-
-DCC_Packet *Register[DCC_QUEUE_LEN];
-
 /**
 Command list from DccPlusPlus:
 
@@ -47,7 +44,7 @@ BaseType_t prvPowerOnCommand( char *pcWriteBuffer,
 	 // Disable Channels, then disable counter.
 	 HAL_GPIO_WritePin(ENABLE_MAIN_GPIO_Port, ENABLE_MAIN_Pin, GPIO_PIN_SET);
 	 HAL_GPIO_WritePin(ENABLE_PROG_GPIO_Port, ENABLE_PROG_Pin, GPIO_PIN_SET);
- 	snprintf(pcWriteBuffer, xWriteBufferLen, "<p1>\r\n\r\n");
+ 	snprintf(pcWriteBuffer, xWriteBufferLen, "<p1>");
 	return pdFALSE;
 }
 
@@ -61,7 +58,7 @@ BaseType_t prvPowerOffCommand( char *pcWriteBuffer,
 	 // Disable Channels, then disable counter.
 	 HAL_GPIO_WritePin(ENABLE_MAIN_GPIO_Port, ENABLE_MAIN_Pin, GPIO_PIN_RESET);
 	 HAL_GPIO_WritePin(ENABLE_PROG_GPIO_Port, ENABLE_PROG_Pin, GPIO_PIN_RESET);
- 	snprintf(pcWriteBuffer, xWriteBufferLen, "<p0>\r\n\r\n");
+ 	snprintf(pcWriteBuffer, xWriteBufferLen, "<p0>");
 	return pdFALSE;
 }
 
@@ -76,7 +73,7 @@ BaseType_t prvPowerToggleCommand( char *pcWriteBuffer,
 	HAL_GPIO_TogglePin(ENABLE_MAIN_GPIO_Port, ENABLE_MAIN_Pin);
 	HAL_GPIO_TogglePin(ENABLE_PROG_GPIO_Port, ENABLE_PROG_Pin);
 	uint8_t pin_status = ((ENABLE_MAIN_GPIO_Port->ODR & ENABLE_MAIN_Pin) != 0X00u);
- 	snprintf(pcWriteBuffer, xWriteBufferLen,"<p%u>\r\n\r\n", pin_status);
+ 	snprintf(pcWriteBuffer, xWriteBufferLen,"<p%u>", pin_status);
 	return pdFALSE;
 }
 
@@ -87,7 +84,6 @@ BaseType_t prvThrottleCommand( char *pcWriteBuffer,
 		size_t xWriteBufferLen,
 		const char *pcCommandString )
 {
-	DCC_Packet *packet = NULL;
 	// Get parameters
     unsigned int reg = atol(FreeRTOS_CLIGetParameter(pcCommandString, 1, NULL));
     unsigned int cab = atol(FreeRTOS_CLIGetParameter(pcCommandString, 2, NULL));
@@ -99,47 +95,42 @@ BaseType_t prvThrottleCommand( char *pcWriteBuffer,
     spd = (spd > 126)             ? 126               : spd;
     dir = (dir)                   ? 1                 : 0;
     // Register allocated?
-    if (Register[reg] == NULL)
+    if (Rooster.allocated[reg] == pdFALSE)
     {
-    	// Allocate DCC Packet
-    	packet = (DCC_Packet *) pvPortMalloc(sizeof(DCC_Packet));
-    	if(packet != NULL)
-    	{
-    		// Set IDLE packet
-    		*packet = DCC_PACKET_IDLE;
-    	}
-    	else
-    	{
-    		// No memory
-    		snprintf(pcWriteBuffer, xWriteBufferLen, "ERROR: No memory for packet\r\n\r\n");
-    	}
+    	// Set IDLE packet
+    	Rooster.packet[reg] = DCC_PACKET_IDLE;
     }
 
-    // Register[cab] != NULL && packet == NULL ==> Register exists, packet is "old"
-    if(Register[cab] != NULL)
-    	packet = Register[cab];
-
-    if(packet != NULL) {
         // Update packet with cab, speed and direction.
-		DCC_Packet_set_address(packet, cab);
-		DCC_Packet_set_speed(packet, spd, dir);
-		// Register[cab] == NULL && packet != NULL ==> No Register, packet is "new"
-		if(Register[cab] == NULL) {
-			osStatus status = osMessageQueuePut(dccMainPacketQueueHandle, (void *) packet, 0U, CLI_DEFAULT_WAIT);
-			if(status != osOK) {
-				vPortFree(packet);
+    	// Critical section. The packet could be the actual pump packet.
+    	taskENTER_CRITICAL();
+    	//UBaseType_t water_mark = uxTaskGetStackHighWaterMark(NULL);
+    	DCC_Packet_set_address(&Rooster.packet[reg], cab);
+    	taskEXIT_CRITICAL();
+    	taskENTER_CRITICAL();
+    	DCC_Packet_set_speed(&Rooster.packet[reg], spd, dir);
+    	taskEXIT_CRITICAL();
+		// Register[reg] == NULL && packet != NULL ==> No Register, packet is "new"
+
+		if(Rooster.allocated[reg] == pdFALSE)
+		{
+			// DCC_Packet *packet = &(Rooster.packet[reg]);
+			uint32_t msg = (uint32_t) &(Rooster.packet[reg]);
+			osStatus status = osMessageQueuePut(dccMainPacketQueueHandle, &msg, 0U, CLI_DEFAULT_WAIT);
+			if(status == osOK) {
+				Rooster.allocated[reg] = pdTRUE;
+			}
+			else {
 				snprintf(pcWriteBuffer, xWriteBufferLen, "ERROR: Packet queue problem %d\r\n\r\n", (int) status);
 				return pdFALSE;
 			}
-			else {
-				Register[cab] = packet;
-			}
 		}
-		// if we are here, everything is ok (i.e. Register[cab] != NULL && packet != NULL
-		snprintf(pcWriteBuffer, xWriteBufferLen, "<T %d %d %d>\r\n\r\n", cab, spd, dir);
-    }
-    // Register[cab] == NULL && packet == NULL ==> No Register and No packet: ignore
-	return pdFALSE;
+		// if we are here, everything is ok (i.e. Register[reg] != NULL && packet != NULL
+		snprintf(pcWriteBuffer, xWriteBufferLen, "<T %d %d %d>", cab, spd, dir);
+
+    // Register[reg] == NULL && packet == NULL ==> No Register and No packet: ignore
+
+		return pdFALSE;
 }
 
 /**
@@ -159,17 +150,92 @@ BaseType_t prvFunctionCommand( char *pcWriteBuffer,
     *packet = DCC_PACKET_CMD;
     packet->data[0] = fbyte;
     DCC_Packet_set_address(packet, cab);
-    osStatus status = osMessageQueuePut(dccMainPacketQueueHandle, (void *) packet, 0U, CLI_DEFAULT_WAIT);
+    uint32_t msg = (uint32_t ) packet;
+    osStatus status = osMessageQueuePut(dccMainPacketQueueHandle, &msg, 0U, CLI_DEFAULT_WAIT);
 	if(status != osOK) {
 		vPortFree(packet);
 		snprintf(pcWriteBuffer, xWriteBufferLen, "ERROR: Packet queue problem %d\r\n\r\n", (int) status);
 	}
 	else {
-		snprintf(pcWriteBuffer, xWriteBufferLen, "\r\n");
+		pcWriteBuffer[0] = '\0';
 	}
 	return pdFALSE;
 }
 
+/**
+ *  Status Command: minimal response to make other soft recognize us as true DCC++ Station
+ */
+BaseType_t prvStatusCommand( char *pcWriteBuffer,
+		size_t xWriteBufferLen,
+		const char *pcCommandString )
+{
+	static BaseType_t phase = 0;
+	static BaseType_t reg = 0;
+	BaseType_t status = pdFALSE;
+	uint8_t pwr, spd, dir;
+	uint16_t cab;
+	switch(phase) {
+	case 0:
+		pwr = ((ENABLE_MAIN_GPIO_Port->ODR & ENABLE_MAIN_Pin) != 0X00u);
+		snprintf(pcWriteBuffer, xWriteBufferLen,"<p%u>", pwr);
+		status = pdTRUE;
+		phase = 1;
+		break;
+	case 1:
+		if(Rooster.allocated[reg] == pdTRUE)
+		{
+			cab = DCC_Packet_get_address(Rooster.packet[reg]);
+			DCC_Packet_get_speed(Rooster.packet[reg], &spd, &dir);
+			snprintf(pcWriteBuffer, xWriteBufferLen, "<T %d %d %d>",
+					cab, spd, dir);
+		}
+		else
+		{
+			// snprintf(pcWriteBuffer, xWriteBufferLen, "");
+			pcWriteBuffer[0] = '\0';
+		}
+		if(reg<DCC_QUEUE_LEN) {
+			reg++;
+		}
+		else
+		{
+			reg = 0;
+			phase = 2;
+		}
+		status = pdTRUE;
+		break;
+	case 2:
+		snprintf(pcWriteBuffer, xWriteBufferLen, DCCPP_STATION);
+		phase = 3;
+		status = pdTRUE;
+		break;
+	case 3:
+		snprintf(pcWriteBuffer, xWriteBufferLen, "<N SERIAL>");
+		phase = 4;
+		status = pdTRUE;
+		break;
+	default:
+		phase = 0;
+		pcWriteBuffer[0] = '\0';
+		status = pdFALSE;
+		break;
+	}
+	return status;
+}
+
+/**
+ * ReadCurrentCommand
+ */
+BaseType_t prvReadCurrentCommand( char *pcWriteBuffer,
+		size_t xWriteBufferLen,
+		const char *pcCommandString )
+{
+	// TODO: Read the current draw.
+	snprintf(pcWriteBuffer, xWriteBufferLen, "<a 256>");
+	return pdFALSE;
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////
 ///// CLI definitions
 static const CLI_Command_Definition_t xPowerOnCommand =
 {
@@ -272,7 +338,7 @@ static const CLI_Command_Definition_t xReadCurrentCommand =
 {
 		"<c",
 		"<c>:\r\n\tReads current draw from main operations track.\r\n",
-		dummyCommand,
+		prvReadCurrentCommand,
 		0
 };
 
@@ -280,9 +346,10 @@ static const CLI_Command_Definition_t xStatusCommand =
 {
 		"<s",
 		"<s>:\r\n\tReturns status messages, including power state, turnout states, and sketch version.\r\n",
-		dummyCommand,
+		prvStatusCommand,
 		0
 };
+
 
 void vRegisterCLICommands() {
   FreeRTOS_CLIRegisterCommand(&xThrottleCommand);      // 01

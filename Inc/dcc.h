@@ -20,7 +20,7 @@ extern "C" {
 // == 1/(2*58)*1000000
 #define DCC_ONE_BIT_FREQ  (8621u)
 
-#define DCC_PACKET_PREAMBLE_LEN             (16)
+#define DCC_PACKET_PREAMBLE_LEN             (15)
 #define DCC_PACKET_ADDRESS_START_BIT_LEN     (1)
 #define DCC_PACKET_ADDRES_LEN                (8)
 #define DCC_PACKET_DATA_START_BIT_LEN        (1)
@@ -29,10 +29,11 @@ extern "C" {
 #define DCC_PACKET_CRC_LEN                   (8)
 #define DCC_PACKET_END_BIT_LEN               (1)
 
-#define DCC_ADDRESS_MAX                 (16127u) // == 0x3EFF == 0011 1110 1111 1111, the first (high) packet address byte
+#define DCC_ADDRESS_MAX                 (10239u) // == 0x3EFF == 0011 1110 1111 1111, the first (high) packet address byte
                                                  // begins with '11' and can not be all '1' because this will clash with broadcast.
 #define DCC_SHORT_ADDRESS_MAX             (127u)
-
+#define DCC_BROADCAST_ADDRESS			  (255u)
+#define DCC_LONG_ADDRESS_PREFIX          0xC000u
 /* Default repeat for DCC Packets */
 #define DCC_PACKET_DEFAULT_REPEAT            (5)
 /* DCC Packet count permanent */
@@ -84,38 +85,42 @@ typedef struct DCC_Packet {
   uint8_t  crc;
 } DCC_Packet;
 
-/*
-typedef struct DCC_Stream {
-  int nbits;
-  unsigned char data[DCC_MAX_STREAM_BYTES];
-} DCC_Stream;
-*/
-
 void DCC_Packet_adjust_crc(DCC_Packet *p);
 void DCC_Packet_set_address(DCC_Packet *p, uint16_t addr);
+uint16_t  DCC_Packet_get_address(DCC_Packet p);
 void DCC_Packet_set_speed(DCC_Packet *p, uint8_t speed, uint8_t direction);
-// void DCC_Packet_to_DCC_Stream(DCC_Packet *packet, DCC_Stream *stream);
+void DCC_Packet_get_speed(DCC_Packet p, uint8_t *speed, uint8_t *dir);
+void DCC_Packet_set_speed_28(DCC_Packet *p, uint8_t speed, uint8_t dir);
 
-//extern const DCC_Packet DCC_Packet_Idle;
-//extern const DCC_Packet DCC_Packet_Reset;
-//extern const DCC_Packet DCC_Packet_Stop;
-#define DCC_PACKET_IDLE  (DCC_Packet) {.data_len = 1, .count = -1, .address = 0x00FF, .data = {0x00, 0x00, 0x00, 0x00, 0x00}, .crc = 0xFF}
+#define DCC_PACKET_IDLE  (DCC_Packet) {.data_len = 1, .count = -1, .address = 0xFF00, .data = {0x00, 0x00, 0x00, 0x00, 0x00}, .crc = 0xFF}
 #define DCC_PACKET_RESET (DCC_Packet) {.data_len = 1, .count =  DCC_PACKET_DEFAULT_REPEAT, .address = 0x0000, .data = {0x00, 0x00, 0x00, 0x00, 0x00}, .crc = 0x00}
 #define DCC_PACKET_STOP  (DCC_Packet) {.data_len = 1, .count =  DCC_PACKET_DEFAULT_REPEAT, .address = 0x0000, .data = {0x41, 0x00, 0x00, 0x00, 0x00}, .crc = 0x41}
 #define DCC_PACKET_CMD   (DCC_Packet) {.data_len = 1, .count =  DCC_PACKET_DEFAULT_REPEAT, .address = 0x0000, .data = {0x00, 0x00, 0x00, 0x00, 0x00}, .crc = 0x00}
+
+extern const DCC_Packet DCC_Idle_Packet;
+
 typedef struct DCC_Packet_Pump {
     DCC_Packet_State status;
     uint8_t bit;
     uint8_t data_count;
     osMessageQId queue;
     osPoolId pool;
-    DCC_Packet *packet;
+    DCC_Packet * volatile packet;
 } DCC_Packet_Pump;
 
 osStatus DCC_Packet_Pump_init(DCC_Packet_Pump *pump, osMessageQId mq_id);
-unsigned long DCC_Packet_Pump_next(DCC_Packet_Pump *pump);
+unsigned long DCC_Packet_Pump_next(volatile DCC_Packet_Pump *pump);
 
 // void dcc_pretty_print(DCC_Packet packet, const char *string);
+#define DCCPP_STATION_MAX_LEN 120
+extern char DCCPP_STATION[DCCPP_STATION_MAX_LEN];
+
+typedef struct Rooster_s {
+	BaseType_t allocated[DCC_QUEUE_LEN];
+	DCC_Packet packet[DCC_QUEUE_LEN];
+} Rooster_t;
+
+extern Rooster_t Rooster;
 
 #ifdef __cplusplus
 }

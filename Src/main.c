@@ -21,8 +21,8 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "cmsis_os.h"
+#include "adc.h"
 #include "dma.h"
-#include "eth.h"
 #include "rng.h"
 #include "tim.h"
 #include "usart.h"
@@ -52,7 +52,11 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
+extern volatile uint32_t nfirst;
 extern volatile uint8_t button_debounce;
+extern volatile uint8_t dcc_task_started;
+extern DCC_Packet_Pump main_pump;
+extern DCC_Packet_Pump prog_pump;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -106,13 +110,13 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_DMA_Init();
-  MX_ETH_Init();
-  MX_TIM1_Init();
   MX_USART3_UART_Init();
   MX_USB_OTG_FS_PCD_Init();
   MX_RNG_Init();
-  MX_TIM4_Init();
   MX_TIM6_Init();
+  MX_ADC1_Init();
+  MX_TIM2_Init();
+  MX_TIM3_Init();
   /* USER CODE BEGIN 2 */
   // Disable output
   HAL_GPIO_WritePin(ENABLE_MAIN_GPIO_Port, ENABLE_MAIN_Pin, GPIO_PIN_RESET);
@@ -240,11 +244,63 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
   {
 	  if(HAL_GPIO_ReadPin(USER_Btn_GPIO_Port, USER_Btn_Pin) == GPIO_PIN_RESET)
 	  {
-		  HAL_TIM_Base_Stop_IT(&htim1);
+		  HAL_TIM_Base_Stop_IT(&htim6);
 		  HAL_GPIO_WritePin(LED_Red_GPIO_Port, LED_Red_Pin, GPIO_PIN_RESET);
 		  button_debounce = 1;
+		  nfirst = 1050;
 	  }
   }
+
+
+/*
+  char bit = '0';
+  char nl[] = "0\n\n";
+  uint32_t arr;
+  if ((htim->Instance == DCC_TIMER_MAIN_INSTANCE) && (nfirst >0) && dcc_task_started) {
+	  arr = DCC_TIMER_MAIN_INSTANCE->ARR;
+	  nfirst--;
+	  if(DCC_ZERO_ARR == arr) {
+		  bit = '0';
+	  }
+	  else if(DCC_ONE_ARR == arr) {
+		  bit = '1';
+	  }
+	  else {
+		  bit = '*';
+	  }
+	  switch(main_pump.status)
+	  {
+	  case DCC_PACKET_PREAMBLE:
+		  if(main_pump.bit == 0) {
+			  nl[0] = '-';
+			  nl[1] = bit;
+			  nl[2] = '\n';
+			  HAL_UART_Transmit_DMA(&huart3, nl, 3);
+		  }
+		  else {
+			  HAL_UART_Transmit_DMA(&huart3, &bit, 1);
+		  }
+		  break;
+	  case DCC_PACKET_ADDRESS:
+	  case DCC_PACKET_ADDRESS_LOW:
+	  case DCC_PACKET_DATA:
+	  case DCC_PACKET_CRC:
+		  if(main_pump.bit == 0) {
+			  nl[0] = '-';
+			  nl[1] = bit;
+			  nl[2] = '-';
+			  HAL_UART_Transmit_DMA(&huart3, nl, 3);
+		  }
+		  else{
+			  HAL_UART_Transmit_DMA(&huart3, &bit, 1);
+		  }
+		  break;
+	  default:
+		  HAL_UART_Transmit_DMA(&huart3, &bit, 1);
+		  break;
+	  }
+  }
+*/
   /* USER CODE END Callback 1 */
 }
 
