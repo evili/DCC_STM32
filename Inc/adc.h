@@ -40,6 +40,16 @@ void MX_ADC1_Init(void);
 
 /* USER CODE BEGIN Prototypes */
 
+#define ADC_DATA_LEN    3
+#define ADC_DATA_ROWS 100
+typedef struct ADC_Record {
+	uint16_t temp;
+	uint16_t senseA;
+	uint16_t senseB;
+} ADC_Record;
+
+extern ADC_Record ADC_Data[ADC_DATA_ROWS];
+
 /* USER CODE END Prototypes */
 
 #ifdef __cplusplus

@@ -25,7 +25,8 @@
 #include "cmsis_os.h"
 
 /* Private includes ----------------------------------------------------------*/
-/* USER CODE BEGIN Includes */     
+/* USER CODE BEGIN Includes */
+#include "adc.h"
 #include "tim.h"
 #include "usart.h"
 #include "dcc.h"
@@ -266,6 +267,7 @@ void StartDccTask(void *argument)
 	// Setup Timers
 	SETUP_TIMER(MAIN);
 	SETUP_TIMER(PROG);
+	HAL_ADC_Start_DMA(&hadc1, ADC_Data, ADC_DATA_LEN*ADC_DATA_ROWS);
 	osDelay(200);
 	/* Infinite loop */
 	for (;;) {
