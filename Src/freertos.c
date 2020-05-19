@@ -130,7 +130,7 @@ const osMessageQueueAttr_t dccDiscardQueue_attributes = {
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN FunctionPrototypes */
 void vEnableUART(UART_HandleTypeDef *huart);
-
+void vUpdateADCValue();
 /* USER CODE END FunctionPrototypes */
 
 void StartDefaultTask(void *argument);
@@ -254,6 +254,7 @@ void StartDccTask(void *argument)
 {
   /* USER CODE BEGIN StartDccTask */
 	osStatus status;
+	uint32_t flags;
 	DCC_Packet *discardPacket;
 	DCC_Packet_Pump_init(&main_pump, dccMainPacketQueueHandle, dccDiscardQueueHandle);
 	DCC_Packet_Pump_init(&prog_pump, dccProgPacketQueueHandle, dccDiscardQueueHandle);
@@ -267,13 +268,38 @@ void StartDccTask(void *argument)
 	// Setup Timers
 	SETUP_TIMER(MAIN);
 	SETUP_TIMER(PROG);
-	HAL_ADC_Start_DMA(&hadc1, ADC_Data, ADC_DATA_LEN*ADC_DATA_ROWS);
+	HAL_StatusTypeDef hal_stat = HAL_TIMEOUT;
+	while(hal_stat != HAL_OK){
+		osDelay(250);
+		hal_stat = HAL_ADC_Start_DMA(&hadc1,(uint32_t *) ADC_Data, ADC_DATA_LEN*ADC_DATA_ROWS);
+	}
 	osDelay(200);
 	/* Infinite loop */
 	for (;;) {
-		status = osMessageQueueGet(dccDiscardQueueHandle, &discardPacket, 0L, 250L);
+		status = osMessageQueueGet(dccDiscardQueueHandle, &discardPacket, 0L, 0L);
 		if(status == osOK)
 			vPortFree(discardPacket);
+		flags = osThreadFlagsWait(DCC_FLAGS, osFlagsWaitAny, 250L);
+		switch(flags) {
+		case DCC_FLAG_ADC_DATA:
+			vUpdateADCValue();
+			break;
+		case DCC_FLAG_ADC_ERROR:
+			HAL_GPIO_WritePin(LED_Red_GPIO_Port, LED_Red_Pin, GPIO_PIN_SET);
+			do {
+				osDelay(250);
+				hal_stat = HAL_ADC_Stop_DMA(&hadc1);
+			} while(hal_stat != HAL_OK);
+			memset((void *) ADC_Data, 0, sizeof(ADC_Record) * ADC_DATA_ROWS);
+			do {
+				osDelay(250);
+				hal_stat = HAL_ADC_Start_DMA(&hadc1,(uint32_t *) ADC_Data, ADC_DATA_LEN*ADC_DATA_ROWS);
+			} while(hal_stat != HAL_OK);
+			HAL_GPIO_WritePin(LED_Red_GPIO_Port, LED_Red_Pin, GPIO_PIN_RESET);
+			break;
+		default:
+			break;
+		}
 		HAL_GPIO_TogglePin(LED_Green_GPIO_Port, LED_Green_Pin);
 	}
   /* USER CODE END StartDccTask */
@@ -360,9 +386,22 @@ void StartCommandTask(void *argument)
 
 /* Private application code --------------------------------------------------*/
 /* USER CODE BEGIN Application */
+void vUpdateADCValue()
+{
+	ADC_Value = (ADC_Record) {0u, 0u, 0u};
+	for(int i=0; i<ADC_DATA_ROWS; i++)
+	{
+		ADC_Value.temp += ADC_Data[i].temp;
+		ADC_Value.senseA += ADC_Data[i].senseB;
+		ADC_Value.senseB += ADC_Data[i].senseB;
+	}
+	ADC_Value.temp /= ADC_DATA_ROWS;
+	ADC_Value.senseA /= ADC_DATA_ROWS;
+	ADC_Value.senseB /= ADC_DATA_ROWS;
+}
 
-void vEnableUART(UART_HandleTypeDef *huart){
-
+void vEnableUART(UART_HandleTypeDef *huart)
+{
 	if(huart->Instance == USART3) {
 		  int32_t state = osKernelLock();
 		  // Disable USART.
@@ -453,6 +492,23 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 		}
 	}
 }
+
+void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
+{
+	if(hadc->Instance == ADC1)
+	{
+		osThreadFlagsSet(dccTaskHandle, DCC_FLAG_ADC_DATA);
+	}
+}
+
+void HAL_ADC_ErrorCallback(ADC_HandleTypeDef* hadc)
+{
+	if(hadc->Instance == ADC1)
+	{
+		osThreadFlagsSet(dccTaskHandle, DCC_FLAG_ADC_ERROR);
+	}
+}
+
 /* USER CODE END Application */
 
 /************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/

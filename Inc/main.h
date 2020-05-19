@@ -153,11 +153,15 @@ void assert_failed(uint8_t* file, uint32_t line);
 
 #define COMMAND_END_OF_LINE 0x0000003eul
 
+// Command Task Flags
 #define COMMAND_FLAG_RECEIVE_OK  0x00000001ul
 #define COMMAND_FLAG_TRANSMIT_OK 0x00000002ul
 #define COMMAND_FLAG_ERROR       0x00000004ul
 #define COMMAND_FLAGS       (COMMAND_FLAG_RECEIVE_OK | COMMAND_FLAG_TRANSMIT_OK | COMMAND_FLAG_ERROR)
-
+// DCC Task Flags
+#define DCC_FLAG_ADC_DATA  0x00000001ul
+#define DCC_FLAG_ADC_ERROR 0x00000002ul
+#define DCC_FLAGS (DCC_FLAG_ADC_DATA | DCC_FLAG_ADC_ERROR)
 /* USER CODE END Private defines */
 
 #ifdef __cplusplus

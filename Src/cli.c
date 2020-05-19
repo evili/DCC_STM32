@@ -2,6 +2,7 @@
 #include "cli.h"
 #include "main.h"
 #include "dcc.h"
+#include "adc.h"
 #include "printf-stdarg.h"
 
 #define CLI_DEFAULT_WAIT 200U
@@ -228,7 +229,7 @@ BaseType_t prvReadCurrentCommand( char *pcWriteBuffer,
 		const char *pcCommandString )
 {
 	// TODO: Read the current draw.
-	snprintf(pcWriteBuffer, xWriteBufferLen, "<a 256>");
+	snprintf(pcWriteBuffer, xWriteBufferLen, "<a %d>", ADC_Value.senseA);
 	return pdFALSE;
 }
 

@@ -21,7 +21,8 @@
 #include "adc.h"
 
 /* USER CODE BEGIN 0 */
-ADC_Record ADC_Data[ADC_DATA_ROWS];
+volatile ADC_Record ADC_Value;
+volatile ADC_Record ADC_Data[ADC_DATA_ROWS];
 /* USER CODE END 0 */
 
 ADC_HandleTypeDef hadc1;
