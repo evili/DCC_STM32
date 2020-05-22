@@ -25,7 +25,7 @@
 #include "cmsis_os.h"
 
 /* Private includes ----------------------------------------------------------*/
-/* USER CODE BEGIN Includes */
+/* USER CODE BEGIN Includes */     
 #include "adc.h"
 #include "tim.h"
 #include "usart.h"
@@ -500,7 +500,13 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 		osThreadFlagsSet(dccTaskHandle, DCC_FLAG_ADC_DATA);
 	}
 }
-
+//void HAL_ADC_ConvHalfCpltCallback(ADC_HandleTypeDef* hadc)
+//{
+//	if(hadc->Instance == ADC1)
+//	{
+//		osThreadFlagsSet(dccTaskHandle, DCC_FLAG_ADC_DATA);
+//	}
+//}
 void HAL_ADC_ErrorCallback(ADC_HandleTypeDef* hadc)
 {
 	if(hadc->Instance == ADC1)

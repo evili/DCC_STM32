@@ -151,7 +151,7 @@ void assert_failed(uint8_t* file, uint32_t line);
                               USART_ICR_EOBCF   |\
                               USART_ICR_CMCF )
 
-#define COMMAND_END_OF_LINE 0x0000003eul
+#define COMMAND_END_OF_LINE 0x0000003eul // '>'
 
 // Command Task Flags
 #define COMMAND_FLAG_RECEIVE_OK  0x00000001ul
