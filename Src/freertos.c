@@ -321,7 +321,7 @@ void StartCommandTask(void *argument)
 	vRegisterCLICommands();
 	vEnableUART(&huart3);
 	// Save DCC++ Station Name, Motor and Version for Later (see command <s>)
-	snprintf(DCCPP_STATION, DCCPP_STATION_MAX_LEN, "<iDCC++ BASE STATION FOR STM32F7 %s %s / %s>",
+	snprintf(DCCPP_STATION, DCCPP_STATION_MAX_LEN, "<iDCC++ BASE STATION FOR STM32F7 / %s: V-1.2.1+ / %s %s>",
 			MOTOR_SHIELD_NAME, __TIME__, __DATE__);
 	snprintf((char *) cOutputString, configCOMMAND_INT_MAX_OUTPUT_SIZE,
 			"%s\r\n", DCCPP_STATION);
