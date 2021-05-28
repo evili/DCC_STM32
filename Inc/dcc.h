@@ -20,7 +20,7 @@ extern "C" {
 // == 1/(2*58)*1000000
 #define DCC_ONE_BIT_FREQ  (8621u)
 
-#define DCC_PACKET_PREAMBLE_LEN             (15)
+#define DCC_PACKET_PREAMBLE_LEN             (20)
 #define DCC_PACKET_ADDRESS_START_BIT_LEN     (1)
 #define DCC_PACKET_ADDRES_LEN                (8)
 #define DCC_PACKET_DATA_START_BIT_LEN        (1)
